@@ -110,7 +110,7 @@ project_code/
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-username/dreamweaver-narrator-engine.git
+git clone https://github.com/alze0401/dreamweaver-narrator-engine.git
 cd dreamweaver-narrator-engine
 ```
 
@@ -189,4 +189,4 @@ npm run dev
 
 ## License
 
-MIT License - 详见 [LICENSE](./LICENSE) 文件
+MIT License
