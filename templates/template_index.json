@@ -1,0 +1,312 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-06-09",
+  "description": "Narrator Engine 预设模板索引。包含所有预设的世界观、角色和剧本模板。",
+
+  "world_templates": [
+    {
+      "id": "world_school_romance",
+      "file": "worlds/school_romance.json",
+      "name": "青春校园 — 樱花飞舞的日常",
+      "genre": ["校园", "恋爱", "日常", "青春"],
+      "era": "现代",
+      "description": "最经典的Galgame舞台。以现代日本高中为背景，围绕社团活动、文化祭、修学旅行等经典事件展开青春恋爱故事。",
+      "difficulty": "简单",
+      "recommended_for_beginners": true,
+      "character_count_suggestion": "3-5",
+      "tags": ["治愈", "轻松", "恋爱为主"]
+    },
+    {
+      "id": "world_fantasy_adventure",
+      "file": "worlds/fantasy_adventure.json",
+      "name": "星辉大陆 — 魔法与剑的史诗",
+      "genre": ["奇幻", "冒险", "战斗", "宫廷", "恋爱"],
+      "era": "中世纪奇幻",
+      "description": "经典西幻Galgame设定。五大元素构成的魔法世界，王国、骑士团、魔法学院交织出波澜壮阔的冒险舞台。",
+      "difficulty": "中等",
+      "recommended_for_beginners": true,
+      "character_count_suggestion": "4-6",
+      "tags": ["史诗", "冒险", "战斗与恋爱并重"]
+    },
+    {
+      "id": "world_cyberpunk",
+      "file": "worlds/cyberpunk.json",
+      "name": "新东京 2087 — 霓虹深渊",
+      "genre": ["赛博朋克", "科幻", "悬疑", "战斗", "恋爱"],
+      "era": "近未来 (2087年)",
+      "description": "赛博朋克风格的近未来都市。AI觉醒、义体改造、巨型企业统治下的反乌托邦世界，探讨何为人类。",
+      "difficulty": "高",
+      "recommended_for_beginners": false,
+      "character_count_suggestion": "4-5",
+      "tags": ["硬核", "哲学", "反乌托邦"]
+    },
+    {
+      "id": "world_yokai",
+      "file": "worlds/yokai.json",
+      "name": "幽世物语 — 人妖共存的黄昏",
+      "genre": ["和风", "妖怪", "恋爱", "悬疑", "治愈"],
+      "era": "现代日本（带灵异元素）",
+      "description": "和风妖怪题材。以日本乡间小镇为舞台，人类与妖怪在「黄昏边界」交织出妖异而温柔的故事。",
+      "difficulty": "中等",
+      "recommended_for_beginners": true,
+      "character_count_suggestion": "3-5",
+      "tags": ["和风", "治愈", "妖异"]
+    },
+    {
+      "id": "world_post_apocalypse",
+      "file": "worlds/post_apocalypse.json",
+      "name": "灰烬纪元 — 末日后的微光",
+      "genre": ["末日", "生存", "冒险", "人性", "恋爱"],
+      "era": "大崩溃后第15年",
+      "description": "后末日生存题材。文明崩溃后的废土世界，幸存者们在废墟中重建希望，同时面对变异生物的威胁和人性的考验。",
+      "difficulty": "高",
+      "recommended_for_beginners": false,
+      "character_count_suggestion": "3-4",
+      "tags": ["沉重", "生存", "人性"]
+    },
+    {
+      "id": "world_court_intrigue",
+      "file": "worlds/court_intrigue.json",
+      "name": "凤鸣宫 — 锦绣权谋",
+      "genre": ["宫廷", "权谋", "恋爱", "古风", "悬疑"],
+      "era": "架空古代（参考唐宋）",
+      "description": "东方宫廷权谋题材。在华丽的宫殿中展开政治博弈、后宫争斗和暗流涌动的恋爱。",
+      "difficulty": "高",
+      "recommended_for_beginners": false,
+      "character_count_suggestion": "4-6",
+      "tags": ["古风", "权谋", "华丽"]
+    },
+    {
+      "id": "world_detective",
+      "file": "worlds/detective.json",
+      "name": "雾都迷案 — 真相只有一条",
+      "genre": ["悬疑", "推理", "都市", "恋爱", "心理"],
+      "era": "现代",
+      "description": "现代都市悬疑推理题材。以一座经常下雨的海滨城市为舞台，在追寻真相的过程中邂逅各色人物。",
+      "difficulty": "中等",
+      "recommended_for_beginners": true,
+      "character_count_suggestion": "3-5",
+      "tags": ["悬疑", "推理", "都市"]
+    },
+    {
+      "id": "world_isekai",
+      "file": "worlds/isekai.json",
+      "name": "彼方之门 — 异世界召唤",
+      "genre": ["异世界", "冒险", "日常", "恋爱", "喜剧"],
+      "era": "异世界（中世纪 + 魔法）",
+      "description": "经典异世界穿越题材。利用现代知识在异世界生存，同时寻找回到原来世界的方法。",
+      "difficulty": "简单",
+      "recommended_for_beginners": true,
+      "character_count_suggestion": "4-5",
+      "tags": ["轻松", "搞笑", "穿越"]
+    },
+    {
+      "id": "world_space_opera",
+      "file": "worlds/space_opera.json",
+      "name": "银河航路 — 星海的尽头",
+      "genre": ["太空歌剧", "科幻", "冒险", "恋爱", "政治"],
+      "era": "公元3200年",
+      "description": "太空歌剧题材。星际旅行时代，主角作为星舰船员在银河中航行，探索未知星域、卷入星际政治。",
+      "difficulty": "中等",
+      "recommended_for_beginners": false,
+      "character_count_suggestion": "4-6",
+      "tags": ["科幻", "宏大", "探索"]
+    }
+  ],
+
+  "character_templates": [
+    {
+      "id": "char_tsundere",
+      "file": "characters/tsundere.json",
+      "name": "傲娇大小姐",
+      "archetype": "ツンデレ",
+      "description": "表面上高傲毒舌，内心其实很在意对方。嘴上说着「才不是为了你呢」，行动却总是出卖自己。",
+      "difficulty": "中",
+      "compatibility": ["world_school_romance", "world_fantasy_adventure", "world_court_intrigue"],
+      "tags": ["经典", "反差萌", "攻略难度高"]
+    },
+    {
+      "id": "char_kuudere",
+      "file": "characters/kuudere.json",
+      "name": "冰山美人",
+      "archetype": "クーデレ",
+      "description": "外表冷漠寡言的美人角色。不是不想说话，而是不擅长/觉得没必要。一旦打开心扉会发现她其实很专一且深情。",
+      "difficulty": "高",
+      "compatibility": ["world_school_romance", "world_detective", "world_cyberpunk"],
+      "tags": ["冷静", "反差", "慢热"]
+    },
+    {
+      "id": "char_genki",
+      "file": "characters/genki.json",
+      "name": "元气少女",
+      "archetype": "元気っ子",
+      "description": "阳光开朗、活力四射的角色。是团队的气氛制造者，永远笑嘻嘻的背后可能藏着不想让人担心的体贴。",
+      "difficulty": "低",
+      "compatibility": ["world_school_romance", "world_fantasy_adventure", "world_isekai", "world_yokai"],
+      "tags": ["阳光", "治愈", "隐藏深度"]
+    },
+    {
+      "id": "char_yamato_nadeshiko",
+      "file": "characters/yamato_nadeshiko.json",
+      "name": "温柔治愈系",
+      "archetype": "大和撫子",
+      "description": "大和抚子式的温柔角色。包容力极强，像春风一样让人感到舒适。但过度的温柔有时也是一种距离感。",
+      "difficulty": "低",
+      "compatibility": ["world_school_romance", "world_yokai", "world_court_intrigue"],
+      "tags": ["温柔", "治愈", "自我牺牲"]
+    },
+    {
+      "id": "char_chuunibyou",
+      "file": "characters/chuunibyou.json",
+      "name": "中二病少女",
+      "archetype": "中二病",
+      "description": "沉浸在自我设定的幻想世界观中的角色。用夸张的中二发言掩饰内心的不安。当她终于愿意卸下「设定」时，才是真正的亲近。",
+      "difficulty": "中",
+      "compatibility": ["world_school_romance", "world_fantasy_adventure", "world_isekai"],
+      "tags": ["有趣", "反差", "心理深度"]
+    },
+    {
+      "id": "char_onee_san",
+      "file": "characters/onee_san.json",
+      "name": "知心大姐姐",
+      "archetype": "お姉さん",
+      "description": "成熟温柔的大姐姐角色。善于照顾人，喜欢调戏主角。但在强大的外表下，她也有不愿意让人看到的脆弱和孤独。",
+      "difficulty": "中",
+      "compatibility": ["world_school_romance", "world_cyberpunk", "world_fantasy_adventure", "world_space_opera"],
+      "tags": ["成熟", "反差", "年龄差"]
+    },
+    {
+      "id": "char_yandere",
+      "file": "characters/yandere.json",
+      "name": "病娇后辈",
+      "archetype": "ヤンデレ",
+      "description": "表面上是乖巧可爱的后辈，内心却有着扭曲而深沉的执念。温柔背后是让人不寒而栗的占有欲。",
+      "difficulty": "高",
+      "compatibility": ["world_school_romance", "world_detective", "world_yokai"],
+      "tags": ["危险", "扭曲", "深沉"]
+    },
+    {
+      "id": "char_mysterious",
+      "file": "characters/mysterious.json",
+      "name": "神秘转学生",
+      "archetype": "不思議ちゃん",
+      "description": "浑身充满谜团的角色。总是独来独往，知道的比说出来的多得多。她的每一个微笑背后都藏着深不见底的秘密。",
+      "difficulty": "高",
+      "compatibility": ["world_school_romance", "world_cyberpunk", "world_detective", "world_isekai"],
+      "tags": ["悬疑", "神秘", "剧情核心"]
+    },
+    {
+      "id": "char_ojousama",
+      "file": "characters/ojousama.json",
+      "name": "千金大小姐",
+      "archetype": "お嬢様",
+      "description": "出身显赫的大小姐。举止优雅但对普通人的世界充满好奇。在高贵的表象下，渴望自由和真实友情。",
+      "difficulty": "中",
+      "compatibility": ["world_school_romance", "world_court_intrigue", "world_fantasy_adventure", "world_space_opera"],
+      "tags": ["优雅", "成长", "阶级差异"]
+    },
+    {
+      "id": "char_osananajimi",
+      "file": "characters/osananajimi.json",
+      "name": "青梅竹马",
+      "archetype": "幼馴染",
+      "description": "从小一起长大的童年好友。太了解对方反而无法表达感情。明明是最亲近的人，却陷入朋友以上恋人未满的困境。",
+      "difficulty": "低",
+      "compatibility": ["world_school_romance", "world_yokai", "world_post_apocalypse", "world_isekai"],
+      "tags": ["青梅竹马", "虐心", "日常"]
+    }
+  ],
+
+  "scenario_templates": [
+    {
+      "id": "scenario_fateful_encounter",
+      "file": "scenarios/fateful_encounter.json",
+      "name": "命运的邂逅",
+      "description": "经典Galgame开局。在某个特殊的地点与命运之人意外相遇，由此拉开故事的序幕。通用性最强，适用于任何世界观。",
+      "compatible_worlds": "all",
+      "tone": "温暖/悬疑",
+      "tags": ["经典", "通用", "入门推荐"]
+    },
+    {
+      "id": "scenario_school_festival",
+      "file": "scenarios/school_festival.json",
+      "name": "学园祭大作战",
+      "description": "以学园祭/文化祭为核心的轻快恋爱剧本。在准备活动的过程中与多个角色产生羁绊，最终在祭典之夜迎来告白时刻。",
+      "compatible_worlds": ["world_school_romance", "world_fantasy_adventure", "world_isekai"],
+      "tone": "轻松/甜蜜",
+      "tags": ["轻快", "恋爱", "多角色"]
+    },
+    {
+      "id": "scenario_forbidden_love",
+      "file": "scenarios/forbidden_love.json",
+      "name": "禁忌之恋",
+      "description": "身份对立阵营之间的禁忌恋爱。在家族/势力/种族对立中挣扎的爱情。",
+      "compatible_worlds": ["world_fantasy_adventure", "world_court_intrigue", "world_cyberpunk", "world_space_opera"],
+      "tone": "沉重/浪漫",
+      "tags": ["虐恋", "对立", "史诗"]
+    },
+    {
+      "id": "scenario_loop_world",
+      "file": "scenarios/loop_world.json",
+      "name": "时间轮回",
+      "description": "时间循环题材。主角被困在重复的时间中，每次循环保留记忆。在不断重复的日子里与某个人的羁绊在累积。",
+      "compatible_worlds": ["world_school_romance", "world_detective", "world_cyberpunk", "world_yokai"],
+      "tone": "悬疑/深情",
+      "tags": ["烧脑", "循环", "深情"]
+    },
+    {
+      "id": "scenario_rising_crisis",
+      "file": "scenarios/rising_crisis.json",
+      "name": "步步危机",
+      "description": "以逐步升级的危机为主线的紧张剧本。从一个小事件开始，不断发现更大的阴谋。",
+      "compatible_worlds": ["world_detective", "world_cyberpunk", "world_post_apocalypse", "world_court_intrigue"],
+      "tone": "紧张/悬疑",
+      "tags": ["悬疑", "阴谋", "高压"]
+    }
+  ],
+
+  "recommended_combinations": {
+    "beginner_friendly": {
+      "name": "轻松入门组合",
+      "world": "world_school_romance",
+      "characters": ["char_genki", "char_tsundere", "char_osananajimi"],
+      "scenario": "scenario_school_festival",
+      "description": "最经典的校园Galgame体验，轻松愉快，适合首次游玩。"
+    },
+    "fantasy_epic": {
+      "name": "奇幻史诗组合",
+      "world": "world_fantasy_adventure",
+      "characters": ["char_ojousama", "char_kuudere", "char_onee_san", "char_mysterious"],
+      "scenario": "scenario_forbidden_love",
+      "description": "在宏大的奇幻世界中体验禁忌之恋，多角色交织的史诗故事。"
+    },
+    "mystery_thriller": {
+      "name": "悬疑推理组合",
+      "world": "world_detective",
+      "characters": ["char_kuudere", "char_mysterious", "char_yandere"],
+      "scenario": "scenario_rising_crisis",
+      "description": "在雨夜的都市中追踪连环案件，每个人都可能是嫌疑人。"
+    },
+    "emotional_deep": {
+      "name": "深情虐心组合",
+      "world": "world_school_romance",
+      "characters": ["char_osananajimi", "char_yandere", "char_mysterious"],
+      "scenario": "scenario_loop_world",
+      "description": "在时间循环中体验深情与遗憾，每一次重复都更接近真相也更痛。"
+    },
+    "scifi_philosophical": {
+      "name": "科幻哲学组合",
+      "world": "world_cyberpunk",
+      "characters": ["char_mysterious", "char_kuudere", "char_onee_san"],
+      "scenario": "scenario_forbidden_love",
+      "description": "在霓虹闪烁的反乌托邦中探讨何为人类，跨越阵营的禁忌之恋。"
+    },
+    "healing_journey": {
+      "name": "治愈之旅组合",
+      "world": "world_yokai",
+      "characters": ["char_yamato_nadeshiko", "char_genki", "char_osananajimi"],
+      "scenario": "scenario_fateful_encounter",
+      "description": "在人妖共存的乡间小镇，体验温柔而妖异的治愈故事。"
+    }
+  }
+}

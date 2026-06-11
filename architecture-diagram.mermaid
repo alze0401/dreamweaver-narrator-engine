@@ -1,0 +1,154 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#6366f1', 'primaryTextColor': '#fff', 'lineColor': '#94a3b8' }}}%%
+
+graph TB
+    %% ═══════════════════════════════════════════════════════
+    %%  织梦绮谭 — 系统架构图 (基于实际代码 v2.0)
+    %% ═══════════════════════════════════════════════════════
+
+    subgraph Frontend["前端 · React 18 + TypeScript + Vite + TailwindCSS"]
+        direction TB
+        subgraph Pages["页面路由 (React Router v6)"]
+            Home["Home.tsx<br/>主菜单 · 粒子动效"]
+            TplSel["TemplateSelect.tsx<br/>5步向导: 分类→世界→剧本→角色→确认"]
+            Game["Game.tsx<br/>核心游戏: 对话 · 选项 · 场景背景 · BGM"]
+            SaveLoad["SaveLoad.tsx<br/>12手动档 + 自动存档"]
+        end
+        subgraph Components["组件层"]
+            DB["DialogueBox.tsx<br/>叙事 / 台词 / 玩家 / 系统"]
+            TW["useTypewriter<br/>逐字显示动画"]
+            CP["ChoicePanel.tsx<br/>选项卡片 · 逐个淡入"]
+            FI["FreeInput.tsx<br/>自由输入框"]
+            SP["SidePanel.tsx<br/>侧栏: 角色列表 · 好感变动"]
+            CC["CharacterCard.tsx<br/>头像 · 名字 · 关系徽章"]
+            RC["Recharts RadarChart<br/>五维好感雷达图"]
+            AB["AffectionBar.tsx<br/>好感度进度条"]
+        end
+        subgraph StateMgmt["状态管理 (Zustand)"]
+            GS["gameStore<br/>session · messages · choices<br/>characters · progress"]
+            US["uiStore<br/>sidePanel · 打字速度<br/>loading · 好感数值开关"]
+        end
+        APIClient["api.ts<br/>templateApi · gameApi · characterApi<br/>saveApi · dialogueApi · categoryApi"]
+    end
+
+    %% ---- 前端内部连线 ----
+    DB --- TW
+    SP --- CC --- RC
+    SP --- CC --- AB
+    Game --> DB & CP & FI & SP
+    Game --> GS & US
+    TplSel --> GS
+    Home & TplSel & Game & SaveLoad --> APIClient
+
+    subgraph Backend["后端 · Python FastAPI (异步) + Uvicorn"]
+        direction TB
+        subgraph API["API 层 · 6 个 Router"]
+            GameAPI["game.py<br/>POST /start<br/>GET /{id}/state<br/>POST /{id}/advance"]
+            CharAPI["character.py<br/>GET /{id}/characters<br/>GET /{id}/characters/{cid}"]
+            TplAPI["template.py<br/>GET · POST · clone"]
+            CatAPI["category.py<br/>GET · GET /{code}/templates"]
+            SaveAPI["save.py<br/>GET · POST · auto · load · DELETE"]
+            DlgAPI["dialogue.py<br/>history · memories · search · SSE stream"]
+        end
+
+        subgraph Engine["核心叙事引擎"]
+            NAR["narrator.py · 调度中心<br/>start_game() · advance()<br/>名字揭示 · 章节推进<br/>角色初始化 · 好感匹配"]
+            subgraph LangGraph["LangGraph 工作流 (StateGraph)"]
+                direction LR
+                BP["build_prompt<br/>组装 Prompt<br/>+ 对话历史"]
+                CL["call_llm<br/>调用 DeepSeek<br/>空响应重试×3"]
+                PR["parse_response<br/>JSON 解析<br/>4策略降级"]
+            end
+            PB["prompt_builder.py<br/>Jinja2 模板渲染<br/>System Prompt 组装"]
+            AFF["affection.py<br/>五维计算器<br/>intimacy · trust · respect<br/>curiosity · fear"]
+            MEM["memory.py<br/>三层记忆管理器<br/>working · episodic · semantic"]
+        end
+
+        subgraph LLM["LLM 适配层"]
+            LLMBase["base.py<br/>抽象接口"]
+            DSProvider["deepseek.py<br/>LangChain ChatOpenAI<br/>JSON mode · 流式"]
+            Parser["response_parser.py<br/>4策略 JSON 提取<br/>emotion 中英映射<br/>narration 兜底生成"]
+        end
+
+        subgraph Infra["基础设施"]
+            Config["config.py<br/>Pydantic Settings<br/>.env 加载"]
+            Database["database.py<br/>SQLAlchemy 2.0 async<br/>连接池 · 自动迁移"]
+            Cache["cache.py<br/>RedisCache 单例<br/>session · dialogue<br/>template · category"]
+        end
+    end
+
+    %% ---- 后端内部连线 ----
+    APIClient ==>|REST API| API
+
+    GameAPI --> NAR
+    CharAPI --> NAR
+    TplAPI --> Database
+    SaveAPI --> Database
+    DlgAPI --> Database
+
+    NAR --> LangGraph
+    NAR --> AFF
+    NAR --> MEM
+
+    BP --> PB
+    CL --> DSProvider
+    PR --> Parser
+
+    PB -->|读取| J2["prompts/<br/>system_prompt.j2<br/>memory_extract.j2<br/>affection_eval.j2"]
+
+    MEM --> WorkingMem
+    MEM --> EpisodicMem
+    MEM --> SemanticMem
+
+    Cache -.->|缓存命中| GameAPI & CharAPI & TplAPI
+
+    subgraph DataLayer["数据层"]
+        MySQL[("MySQL<br/>aiomysql 异步驱动<br/>11 张表<br/>auto-migration")]
+        Redis[("Redis<br/>会话/对话/模板缓存<br/>TTL: 300s-3600s")]
+        ChromaDB[("ChromaDB<br/>嵌入式向量库<br/>语义记忆检索")]
+    end
+
+    subgraph MemoryArch["三层记忆架构"]
+        WorkingMem["工作记忆<br/>最近 12 轮对话<br/>DialogueLog 直查"]
+        EpisodicMem["情景记忆<br/>场景压缩摘要<br/>SceneSummary 表"]
+        SemanticMem["语义记忆<br/>关键事实 + 向量<br/>Memory 表 + ChromaDB"]
+    end
+
+    Database --> MySQL
+    Cache --> Redis
+    SemanticMem --> ChromaDB
+
+    subgraph Models["ORM 模型 (SQLAlchemy 2.0)"]
+        M1["game_sessions<br/>会话 · 章节 · world_state"]
+        M2["dialogue_logs<br/>对话历史 · 选项 · metadata"]
+        M3["affection_states<br/>五维好感 · 关系等级"]
+        M4["scene_summaries<br/>场景摘要"]
+        M5["memories<br/>语义记忆 · embedding_id"]
+        M6["player_profiles<br/>玩家画像 · 特征 · 决策"]
+        M7["save_slots<br/>手动档 1-20 · 自动 101-103"]
+        M8["templates<br/>世界 · 角色 · 剧本 JSON"]
+        M9["categories + mapping<br/>模板分类"]
+    end
+
+    MySQL --- Models
+
+    subgraph External["外部服务"]
+        DeepSeek["DeepSeek API<br/>deepseek-v4-flash<br/>JSON mode 强制输出"]
+    end
+
+    DSProvider ==>|HTTPS| DeepSeek
+
+    %% ---- 样式 ----
+    style Frontend fill:#1e1b4b,stroke:#6366f1,color:#e0e7ff
+    style Pages fill:#312e81,stroke:#6366f1,color:#c7d2fe
+    style Components fill:#312e81,stroke:#6366f1,color:#c7d2fe
+    style StateMgmt fill:#312e81,stroke:#818cf8,color:#c7d2fe
+    style Backend fill:#0c1222,stroke:#38bdf8,color:#e0f2fe
+    style API fill:#164e63,stroke:#22d3ee,color:#cffafe
+    style Engine fill:#1e293b,stroke:#f59e0b,color:#fef3c7
+    style LangGraph fill:#78350f,stroke:#fbbf24,color:#fef9c3
+    style LLM fill:#3b0764,stroke:#c084fc,color:#f3e8ff
+    style Infra fill:#1c1917,stroke:#a8a29e,color:#e7e5e4
+    style DataLayer fill:#14532d,stroke:#4ade80,color:#dcfce7
+    style MemoryArch fill:#4c1d95,stroke:#a78bfa,color:#ede9fe
+    style Models fill:#14532d,stroke:#86efac,color:#dcfce7
+    style External fill:#7f1d1d,stroke:#f87171,color:#fecaca

@@ -1,0 +1,54 @@
+{# ============================================================
+   Narrator Engine - 记忆提取提示词模板
+   
+   在每轮对话结束后异步调用，让 LLM 从对话中提取
+   需要长期保存的关键信息。
+   ============================================================ #}
+
+分析以下对话，提取需要长期记忆的信息。
+
+## 对话内容
+{{ dialogue_text }}
+
+## 任务说明
+请从以上对话中识别并提取以下信息：
+
+1. **场景摘要 (episodic_summary)**: 用 2-3 句话概括本轮对话发生了什么
+2. **新事实 (new_facts)**: 新发现的重要事实、信息、事件
+3. **关系变化 (relationship_changes)**: 角色之间的关系发生了什么变化
+4. **玩家特征 (player_traits_observed)**: 玩家在本轮对话中展现出的性格特征
+5. **剧情线索 (plot_threads)**: 新开启或推进的剧情线索
+
+## 重要度评估标准
+- 1-3: 琐碎细节（天气、闲聊）
+- 4-5: 一般信息（角色喜好、日常事件）
+- 6-7: 重要信息（角色秘密、关键决定、关系变化）
+- 8-9: 核心信息（主线推进、重大转折）
+- 10: 改变世界的信息（只有真正重大的事件）
+
+只提取 importance >= 6 的信息。不要事无巨细地记录。
+
+## 输出格式
+请输出 JSON 格式:
+```json
+{
+  "episodic_summary": "一段话概括本轮对话",
+  "new_facts": [
+    {
+      "content": "新发现的重要事实",
+      "importance": 8,
+      "category": "character_secret|world_event|relationship|player_action|other",
+      "related_characters": ["相关角色名"]
+    }
+  ],
+  "relationship_changes": [
+    {
+      "character": "角色名",
+      "change_description": "关系发生了什么变化",
+      "sentiment": "positive|negative|neutral"
+    }
+  ],
+  "player_traits_observed": ["本轮对话中玩家展现的性格特征"],
+  "plot_threads": ["新开启或推进的剧情线索"]
+}
+```

@@ -1,0 +1,332 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   织梦绮谭 - 全局样式
+   精致二次元 Galgame 暗色主题
+   ============================================ */
+
+/* --- 基础 --- */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #0c0a15;
+  color: #e2e0f0;
+  font-family: "Noto Sans SC", "Noto Sans JP", system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 135, 165, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 135, 165, 0.6);
+}
+
+/* 文本选中色 */
+::selection {
+  background: rgba(168, 130, 255, 0.35);
+  color: #fff;
+}
+
+/* ============================================
+   毛玻璃面板
+   ============================================ */
+.glass-panel {
+  background: linear-gradient(
+    135deg,
+    rgba(42, 38, 64, 0.72) 0%,
+    rgba(30, 27, 46, 0.56) 100%
+  );
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-strong {
+  background: linear-gradient(
+    135deg,
+    rgba(42, 38, 64, 0.88) 0%,
+    rgba(30, 27, 46, 0.78) 100%
+  );
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* 对话框毛玻璃 */
+.dialogue-glass {
+  background: linear-gradient(
+    180deg,
+    rgba(30, 27, 46, 0.85) 0%,
+    rgba(20, 17, 32, 0.92) 100%
+  );
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(168, 130, 255, 0.1);
+  border-radius: 20px;
+  box-shadow:
+    0 -4px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ============================================
+   选项按钮
+   ============================================ */
+.choice-btn {
+  @apply relative overflow-hidden transition-all duration-300;
+}
+.choice-btn::before {
+  content: '';
+  @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+  background: linear-gradient(
+    135deg,
+    rgba(168, 130, 255, 0.15) 0%,
+    rgba(244, 114, 182, 0.1) 100%
+  );
+}
+.choice-btn:hover::before {
+  @apply opacity-100;
+}
+
+/* ============================================
+   打字机光标
+   ============================================ */
+.typewriter-cursor::after {
+  content: '|';
+  @apply animate-pulse text-primary;
+}
+
+/* ============================================
+   关键帧动画
+   ============================================ */
+@keyframes slideUp {
+  0% { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fadeInScale {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.4; filter: blur(60px); }
+  50% { opacity: 0.7; filter: blur(80px); }
+}
+
+@keyframes particleFloat {
+  0% {
+    transform: translateY(100vh) translateX(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(90vh) translateX(10px) scale(1);
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-10vh) translateX(-20px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes particleDrift {
+  0% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 0;
+  }
+  15% { opacity: 0.8; }
+  85% { opacity: 0.4; }
+  100% {
+    transform: translateY(-5vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   选项逐个出现动画
+   ============================================ */
+.choice-appear {
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+.choice-appear:nth-child(1) { animation-delay: 0.08s; }
+.choice-appear:nth-child(2) { animation-delay: 0.16s; }
+.choice-appear:nth-child(3) { animation-delay: 0.24s; }
+.choice-appear:nth-child(4) { animation-delay: 0.32s; }
+.choice-appear:nth-child(5) { animation-delay: 0.40s; }
+.choice-appear:nth-child(6) { animation-delay: 0.48s; }
+
+/* ============================================
+   浮动光粒子（用于首页背景）
+   ============================================ */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.particle--glow {
+  animation: particleFloat var(--duration, 12s) var(--delay, 0s) infinite linear;
+}
+
+.particle--drift {
+  animation: particleDrift var(--duration, 16s) var(--delay, 0s) infinite linear;
+}
+
+/* 光晕呼吸 */
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: glowPulse var(--duration, 6s) ease-in-out infinite;
+}
+
+/* ============================================
+   标题文字特效
+   ============================================ */
+.title-shimmer {
+  background: linear-gradient(
+    120deg,
+    #c4b5fd 0%,
+    #f9a8d4 25%,
+    #e0e7ff 50%,
+    #c4b5fd 75%,
+    #f9a8d4 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+.title-glow {
+  text-shadow:
+    0 0 20px rgba(168, 130, 255, 0.3),
+    0 0 60px rgba(168, 130, 255, 0.15),
+    0 0 100px rgba(168, 130, 255, 0.05);
+}
+
+/* ============================================
+   菜单项悬停光效
+   ============================================ */
+.menu-item-glow {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-item-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  background: linear-gradient(
+    135deg,
+    rgba(168, 130, 255, 0.08) 0%,
+    rgba(244, 114, 182, 0.06) 50%,
+    transparent 100%
+  );
+}
+.menu-item-glow:hover::after {
+  opacity: 1;
+}
+.menu-item-glow:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 25px rgba(168, 130, 255, 0.12),
+    0 0 0 1px rgba(168, 130, 255, 0.15);
+}
+
+/* ============================================
+   渐变按钮
+   ============================================ */
+.btn-gradient {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%);
+  background-size: 200% 200%;
+  transition: all 0.3s ease;
+}
+.btn-gradient:hover {
+  background-position: 100% 100%;
+  box-shadow: 0 6px 20px rgba(168, 130, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #fb7185 100%);
+  background-size: 200% 200%;
+  transition: all 0.3s ease;
+}
+.btn-accent:hover {
+  background-position: 100% 100%;
+  box-shadow: 0 6px 20px rgba(244, 114, 182, 0.35);
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   卡片选中态
+   ============================================ */
+.card-selected {
+  background: linear-gradient(
+    135deg,
+    rgba(168, 130, 255, 0.12) 0%,
+    rgba(244, 114, 182, 0.08) 100%
+  );
+  border-color: rgba(168, 130, 255, 0.4) !important;
+  box-shadow:
+    0 0 20px rgba(168, 130, 255, 0.1),
+    inset 0 0 20px rgba(168, 130, 255, 0.03);
+}
+
+/* ============================================
+   分割线渐变
+   ============================================ */
+.divider-gradient {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(168, 130, 255, 0.2) 50%,
+    transparent 100%
+  );
+}
