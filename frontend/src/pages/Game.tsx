@@ -24,6 +24,11 @@ export const Game: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const turnCountRef = useRef(0)  // 对话轮次计数（用于自动存档）
 
+  // ---- 顺序打字机：追踪当前正在动画的消息索引 ----
+  const [animatingIndex, setAnimatingIndex] = useState<number | null>(null)
+  const initialCountRef = useRef<number>(-1) // -1 = 尚未初始化
+  const isProcessingRef = useRef(false) // processResponse 正在执行时阻止 init effect 干扰
+
   // Store
   const sessionId = useGameStore((s) => s.sessionId)
   const messages = useGameStore((s) => s.messages)
@@ -54,6 +59,59 @@ export const Game: React.FC = () => {
     })
     return map
   }, [characters])
+
+  // ---- 会话变更时重置打字机状态（换局游戏） ----
+  useEffect(() => {
+    initialCountRef.current = -1
+    setAnimatingIndex(null)
+  }, [sessionId])
+
+  // ---- 打字机辅助函数：判断消息是否使用打字机效果 ----
+  const isTypewriterType = useCallback((msg: DisplayMessage) =>
+    msg.type === 'narration' || msg.type === 'dialogue', [])
+
+  // ---- 顺序打字机：单条消息完成后推进到下一条 ----
+  const handleTypeComplete = useCallback((index: number) => {
+    const totalMessages = useGameStore.getState().messages.length
+    setAnimatingIndex(prev => {
+      if (prev !== index) return prev
+      const next = index + 1
+      if (next < totalMessages && next >= initialCountRef.current) return next
+      // 链条完成 → 更新 initialCountRef 防止 init effect 重启动画
+      initialCountRef.current = totalMessages
+      return null
+    })
+  }, [])
+
+  // ---- 初始化：首次渲染 & 页面返回时标记已有消息为"已展示" ----
+  useEffect(() => {
+    if (initialCountRef.current === -1) {
+      initialCountRef.current = messages.length
+    } else if (animatingIndex === null && !isProcessingRef.current && messages.length > initialCountRef.current) {
+      // 只有新消息中包含需要打字机的消息类型时才启动动画
+      const hasTypewriterMsgs = messages
+        .slice(initialCountRef.current)
+        .some(m => isTypewriterType(m))
+      if (hasTypewriterMsgs) {
+        setAnimatingIndex(initialCountRef.current)
+      }
+    }
+  }, [messages.length, animatingIndex, isTypewriterType])
+
+  // ---- 非打字机消息（player / system）自动跳过 ----
+  useEffect(() => {
+    if (animatingIndex !== null && animatingIndex < messages.length) {
+      const msg = messages[animatingIndex]
+      if (!isTypewriterType(msg)) {
+        const next = animatingIndex + 1
+        if (next < messages.length && next >= initialCountRef.current) {
+          setAnimatingIndex(next)
+        } else {
+          setAnimatingIndex(null)
+        }
+      }
+    }
+  }, [animatingIndex, messages, isTypewriterType])
 
   // ---- 场景背景图（加载失败时隐藏） ----
   const [bgUrl, setBgUrl] = useState<string | null>(null)
@@ -135,60 +193,64 @@ export const Game: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const processResponse = useCallback((res: import('@/types').DialogueAdvanceResponse) => {
+  const processResponse = useCallback((res: import('@/types').DialogueAdvanceResponse, startIndex: number) => {
     const newMsgs: DisplayMessage[] = []
     if (res.narration) newMsgs.push({ id: '', type: 'narration', text: res.narration })
     for (const d of res.dialogues) {
       newMsgs.push({ id: '', type: 'dialogue', speaker: d.speaker, text: d.text, emotion: d.emotion, action: d.action })
     }
+
+    // 在 addMessages 之前标记"正在处理"，阻止 Zustand 同步渲染时 init effect 干扰
+    isProcessingRef.current = true
+    initialCountRef.current = startIndex
+
     addMessages(newMsgs)
+
+    if (newMsgs.length > 0) {
+      setAnimatingIndex(startIndex)
+    }
+
     setChoices(res.choices)
     setScene(res.scene_state.location || '', res.scene_state)
     if (res.affection_changes?.length) addAffectionChanges(res.affection_changes)
-    // 实时更新角色好感度数据（驱动雷达图刷新）
     if (res.updated_characters?.length) setCharacters(res.updated_characters)
     if (res.progress) setProgress(res.progress)
     setGenerating(false)
 
-    // ---- 自动存档逻辑（暂时关闭）----
+    isProcessingRef.current = false
     turnCountRef.current += 1
-    // if (sessionId && turnCountRef.current % AUTO_SAVE_INTERVAL === 0
-    //     && useAuthStore.getState().isAuthenticated) {
-    //   saveApi.autoSave(sessionId).catch((err) => {
-    //     console.warn('自动存档失败（不影响游戏）:', err)
-    //   })
-    // }
   }, [addMessages, setChoices, setScene, addAffectionChanges, setGenerating, setProgress, sessionId])
 
   const sendInput = useCallback(async (inputType: 'choice' | 'free', content: string) => {
     if (!sessionId || isGenerating) return
     addMessages([{ id: '', type: 'player', text: content }])
+    const startIndex = messages.length + 1
     setChoices([])
     setGenerating(true)
     try {
       const res = await gameApi.advance(sessionId, inputType, content)
-      processResponse(res)
+      processResponse(res, startIndex)
     } catch (err) {
       console.error('剧情推进失败:', err)
       addMessages([{ id: '', type: 'system', text: `系统错误: ${(err as Error).message}` }])
       setGenerating(false)
     }
-  }, [sessionId, isGenerating, addMessages, setChoices, setGenerating, processResponse])
+  }, [sessionId, isGenerating, addMessages, setChoices, setGenerating, processResponse, messages.length])
 
   const handleChoiceSelect = useCallback((choice: DialogueChoice) => {
     if (!sessionId || isGenerating) return
     addMessages([{ id: '', type: 'player', text: choice.text }])
+    const startIndex = messages.length + 1
     setChoices([])
     setGenerating(true)
-    // 发送 choice.text（而非 choice.id），确保 LLM 能看到玩家实际选择的内容
     gameApi.advance(sessionId, 'choice', choice.text)
-      .then(processResponse)
+      .then(res => processResponse(res, startIndex))
       .catch((err) => {
         console.error('剧情推进失败:', err)
         addMessages([{ id: '', type: 'system', text: `系统错误: ${(err as Error).message}` }])
         setGenerating(false)
       })
-  }, [sessionId, isGenerating, addMessages, setChoices, setGenerating, processResponse])
+  }, [sessionId, isGenerating, addMessages, setChoices, setGenerating, processResponse, messages.length])
 
   const handleFreeInput = (text: string) => sendInput('free', text)
 
@@ -301,7 +363,8 @@ export const Game: React.FC = () => {
           <DialogueBox
             key={msg.id || index}
             message={msg}
-            isLatest={index === messages.length - 1}
+            isLatest={animatingIndex === index}
+            onTypeComplete={index >= initialCountRef.current ? () => handleTypeComplete(index) : undefined}
             avatarUrl={msg.speaker ? avatarMap[msg.speaker] ?? null : null}
           />
         ))}
@@ -326,21 +389,23 @@ export const Game: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ====== 底部输入区 ====== */}
-      <div className="shrink-0 px-4 py-3 max-w-3xl mx-auto w-full relative z-10 game-input-area">
-        <div className="divider-gradient mb-3" />
+      {/* ====== 底部输入区（打字机全部完成后才显示） ====== */}
+      {animatingIndex === null && (
+        <div className="shrink-0 px-4 py-3 max-w-3xl mx-auto w-full relative z-10 game-input-area">
+          <div className="divider-gradient mb-3" />
 
-        <ChoicePanel
-          choices={currentChoices}
-          disabled={isGenerating}
-          onSelect={handleChoiceSelect}
-        />
+          <ChoicePanel
+            choices={currentChoices}
+            disabled={isGenerating}
+            onSelect={handleChoiceSelect}
+          />
 
-        <FreeInput
-          disabled={isGenerating}
-          onSubmit={handleFreeInput}
-        />
-      </div>
+          <FreeInput
+            disabled={isGenerating}
+            onSubmit={handleFreeInput}
+          />
+        </div>
+      )}
 
       {/* 侧边栏 */}
       <SidePanel />

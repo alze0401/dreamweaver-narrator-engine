@@ -15,23 +15,34 @@ export function useTypewriter(fullText: string, onComplete?: () => void, animate
   const speed = useUIStore((s) => s.typewriterSpeed)
   const indexRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const doneRef = useRef(!animate)
+  // 记录是否曾经启动过打字机（区分"从未动画"和"动画已完成"）
+  const everAnimatedRef = useRef(animate)
 
-  // 当文本变化或 animate 切换时重新处理
   useEffect(() => {
+    // 打字机已完成且之前启动过 → 不再重启（防循环）
+    if (doneRef.current && everAnimatedRef.current) return
+
     if (!animate) {
       // 不需要动画 → 直接显示全文
       if (timerRef.current) clearTimeout(timerRef.current)
       setDisplayedText(fullText)
       setIsComplete(true)
+      // 不设 doneRef、不设 everAnimated —— 后续 animate 变 true 时还需启动
       return
     }
 
+    // 开始打字机动画
+    everAnimatedRef.current = true
     setDisplayedText('')
     setIsComplete(false)
+    doneRef.current = false
     indexRef.current = 0
 
     if (!fullText) {
       setIsComplete(true)
+      doneRef.current = true
+      onComplete?.()
       return
     }
 
@@ -42,6 +53,7 @@ export function useTypewriter(fullText: string, onComplete?: () => void, animate
         timerRef.current = setTimeout(tick, speed)
       } else {
         setIsComplete(true)
+        doneRef.current = true
         onComplete?.()
       }
     }
@@ -51,13 +63,15 @@ export function useTypewriter(fullText: string, onComplete?: () => void, animate
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [fullText, speed, animate]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fullText, animate]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 点击跳过：立即显示全部文字
   const skip = useCallback(() => {
+    if (doneRef.current) return
     if (timerRef.current) clearTimeout(timerRef.current)
     setDisplayedText(fullText)
     setIsComplete(true)
+    doneRef.current = true
+    everAnimatedRef.current = true
     onComplete?.()
   }, [fullText, onComplete])
 

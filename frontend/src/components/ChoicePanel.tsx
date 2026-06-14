@@ -16,11 +16,11 @@ export const ChoicePanel: React.FC<Props> = ({ choices, disabled, onSelect }) =>
   if (choices.length === 0) return null
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5 sm:space-y-2 max-h-[35vh] overflow-y-auto pr-1">
       {choices.map((choice, index) => (
         <button
           key={choice.id}
-          className="choice-appear choice-btn w-full text-left px-5 py-3.5
+          className="choice-appear choice-btn w-full text-left px-4 py-2.5 sm:px-5 sm:py-3.5
                      glass-panel hover:border-primary/25
                      disabled:opacity-30 disabled:cursor-not-allowed
                      group cursor-pointer"
@@ -28,22 +28,22 @@ export const ChoicePanel: React.FC<Props> = ({ choices, disabled, onSelect }) =>
           disabled={disabled}
           onClick={() => onSelect(choice)}
         >
-          <div className="flex items-start gap-3 relative z-10">
+          <div className="flex items-start gap-2.5 sm:gap-3 relative z-10">
             {/* 选项标记 */}
-            <div className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center mt-0.5
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg shrink-0 flex items-center justify-center mt-0.5
                             bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
-              <span className="text-primary-light text-xs font-bold">
+              <span className="text-primary-light text-[11px] sm:text-xs font-bold">
                 {String.fromCharCode(65 + index)}
               </span>
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-text-bright text-[14px] leading-relaxed
+              <p className="text-text-bright text-[13px] sm:text-[14px] leading-relaxed
                             group-hover:text-primary-light transition-colors duration-300">
                 {choice.text}
               </p>
               {choice.hint && (
-                <p className="text-text-dim/50 text-xs mt-1.5 leading-relaxed">
+                <p className="text-text-dim/50 text-[11px] sm:text-xs mt-1 sm:mt-1.5 leading-relaxed">
                   {choice.hint}
                 </p>
               )}
