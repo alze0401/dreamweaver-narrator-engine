@@ -6,9 +6,11 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Trash2, FolderOpen, Plus, AlertTriangle } from 'lucide-react'
-import { saveApi } from '@/services/api'
+import { saveApi, dialogueApi, characterApi } from '@/services/api'
 import { useGameStore } from '@/stores/gameStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
+import type { DisplayMessage } from '@/stores/gameStore'
 import type { SaveSlot } from '@/types'
 
 export const SaveLoad: React.FC = () => {
@@ -23,10 +25,20 @@ export const SaveLoad: React.FC = () => {
 
   // 加载存档列表
   const loadSaves = useCallback(() => {
+    // 检查登录状态
+    if (!useAuthStore.getState().isAuthenticated) {
+      window.dispatchEvent(new CustomEvent('auth-required'))
+      return
+    }
     setLoadingState(true)
     saveApi.list()
       .then(setSaves)
-      .catch((err) => console.error('加载存档失败:', err))
+      .catch((err) => {
+        console.error('加载存档失败:', err)
+        if ((err as Error).message !== 'NEED_LOGIN') {
+          console.error(err)
+        }
+      })
       .finally(() => setLoadingState(false))
   }, [])
 
@@ -41,13 +53,20 @@ export const SaveLoad: React.FC = () => {
       alert('当前没有进行中的游戏')
       return
     }
+    // 检查登录状态
+    if (!useAuthStore.getState().isAuthenticated) {
+      window.dispatchEvent(new CustomEvent('auth-required'))
+      return
+    }
     setLoading(true, '保存中...')
     try {
       await saveApi.create(slotNum, sessionId, `第${chapter}章 存档`)
       loadSaves()
     } catch (err) {
       console.error('存档失败:', err)
-      alert('存档失败: ' + (err as Error).message)
+      if ((err as Error).message !== 'NEED_LOGIN') {
+        alert('存档失败: ' + (err as Error).message)
+      }
     } finally {
       setLoading(false)
     }
@@ -55,15 +74,116 @@ export const SaveLoad: React.FC = () => {
 
   // 加载存档
   const handleLoad = async (save: SaveSlot) => {
+    // 检查登录状态
+    if (!useAuthStore.getState().isAuthenticated) {
+      window.dispatchEvent(new CustomEvent('auth-required'))
+      return
+    }
     setLoading(true, '读取存档中...')
     try {
       const res = await saveApi.load(save.id)
       const newSessionId = res.data.session_id
-      useGameStore.getState().setSession(newSessionId)
+      const store = useGameStore.getState()
+
+      // 先完全重置，清除上一局的所有残留状态
+      store.reset()
+
+      // 设置会话和章节
+      store.setSession(newSessionId)
+      store.setChapter(res.data.chapter)
+
+      // 设置场景状态
+      if (res.data.current_scene || res.data.world_state) {
+        store.setScene(
+          res.data.current_scene || '',
+          (res.data.world_state as Record<string, unknown>) || {}
+        )
+      }
+
+      // 从对话历史重建消息
+      if (res.data.recent_dialogues && res.data.recent_dialogues.length > 0) {
+        const messages: DisplayMessage[] = []
+        for (const entry of res.data.recent_dialogues) {
+          if (entry.speaker === 'player') {
+            messages.push({
+              id: '',
+              type: 'player',
+              text: entry.content,
+            })
+          } else if (entry.speaker === 'narrator') {
+            // narrator 的 content 可能是 JSON 字符串，包含叙事和对话
+            try {
+              const parsed = JSON.parse(entry.content)
+              // 如果有 narration 字段
+              if (parsed.narration) {
+                messages.push({
+                  id: '',
+                  type: 'narration',
+                  text: parsed.narration,
+                })
+              }
+              // 如果有 dialogues 数组
+              if (Array.isArray(parsed.dialogues)) {
+                for (const d of parsed.dialogues) {
+                  if (d.text) {
+                    messages.push({
+                      id: '',
+                      type: 'dialogue',
+                      speaker: d.speaker,
+                      text: d.text,
+                      emotion: d.emotion || '',
+                      action: d.action || '',
+                    })
+                  }
+                }
+              }
+            } catch {
+              // 不是 JSON，直接作为叙事文本
+              if (entry.content) {
+                messages.push({
+                  id: '',
+                  type: 'narration',
+                  text: entry.content,
+                })
+              }
+            }
+          } else {
+            // 角色对话
+            if (entry.content) {
+              messages.push({
+                id: '',
+                type: 'dialogue',
+                speaker: entry.speaker,
+                text: entry.content,
+                emotion: entry.emotion || '',
+                action: entry.action || '',
+              })
+            }
+          }
+        }
+        if (messages.length > 0) {
+          store.addMessages(messages)
+        }
+      }
+
+      // 获取并设置角色数据
+      try {
+        const characters = await characterApi.list(newSessionId)
+        store.setCharacters(characters)
+      } catch (charErr) {
+        console.warn('加载角色数据失败:', charErr)
+        // 如果存档快照有角色状态，从快照恢复
+        if (res.data.characters_state && res.data.characters_state.length > 0) {
+          store.setCharacters(res.data.characters_state as unknown as Parameters<typeof store.setCharacters>[0])
+        }
+      }
+
       navigate('/game')
     } catch (err) {
       console.error('读档失败:', err)
-      alert('读档失败: ' + (err as Error).message)
+      if ((err as Error).message !== 'NEED_LOGIN') {
+        alert('读档失败: ' + (err as Error).message)
+      }
     } finally {
       setLoading(false)
     }
@@ -71,6 +191,10 @@ export const SaveLoad: React.FC = () => {
 
   // 删除存档
   const handleDelete = async (saveId: string) => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      alert('请先登录')
+      return
+    }
     try {
       await saveApi.delete(saveId)
       setConfirmDelete(null)

@@ -197,3 +197,34 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
         # 第二步：检测并补充缺失的列
         await _auto_migrate_columns(conn)
+
+    # 第三步：确保"自定义&其他"分类存在
+    await _ensure_custom_category()
+
+
+async def _ensure_custom_category():
+    """确保 template_categories 中存在 '自定义&其他' 分类"""
+    try:
+        async with async_session_factory() as session:
+            from app.models.template_models import TemplateCategory
+            from sqlalchemy import select
+
+            stmt = select(TemplateCategory).where(TemplateCategory.code == "custom")
+            result = await session.execute(stmt)
+            existing = result.scalar_one_or_none()
+
+            if not existing:
+                new_cat = TemplateCategory(
+                    code="custom",
+                    name="自定义&其他",
+                    description="用户自定义模板或不属于其他分类的模板",
+                    icon="Palette",
+                    sort_order=99,
+                )
+                session.add(new_cat)
+                await session.commit()
+                logger.info("[seed] 已自动插入 '自定义&其他' 分类")
+            else:
+                logger.debug("[seed] '自定义&其他' 分类已存在，跳过")
+    except Exception as e:
+        logger.warning(f"[seed] 插入 '自定义&其他' 分类失败: {e}")

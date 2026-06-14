@@ -41,6 +41,12 @@ class Template(Base):
         String(32), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     data: Mapped[dict] = mapped_column(JSON, nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(
+        String(512), nullable=True, comment="角色头像/立绘 或 世界封面图 URL"
+    )
+    bg_url: Mapped[str | None] = mapped_column(
+        String(512), nullable=True, comment="背景图 URL（世界观模板的场景背景）"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -75,7 +81,72 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(String(64), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="user")  # user / admin
+    avatar_url: Mapped[str | None] = mapped_column(
+        String(512), nullable=True, comment="用户头像 URL"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     # relationships
     templates: Mapped[list["Template"]] = relationship("Template", back_populates="creator")
+    game_settings: Mapped["UserGameSettings | None"] = relationship(
+        "UserGameSettings", back_populates="user", uselist=False,
+    )
+
+
+class UserGameSettings(Base):
+    """用户游戏设置表（一对一关联用户）"""
+    __tablename__ = "user_game_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True, comment="用户ID（一对一）"
+    )
+
+    # ---- 音频设置 ----
+    bgm_url: Mapped[str | None] = mapped_column(
+        String(512), nullable=True, comment="自定义 BGM 文件 URL"
+    )
+    bgm_volume: Mapped[float] = mapped_column(
+        default=0.7, comment="BGM 音量 (0.0 ~ 1.0)"
+    )
+    bgm_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, comment="是否启用 BGM"
+    )
+    sfx_volume: Mapped[float] = mapped_column(
+        default=0.8, comment="音效音量 (0.0 ~ 1.0)"
+    )
+
+    # ---- 视觉设置 ----
+    bg_url: Mapped[str | None] = mapped_column(
+        String(512), nullable=True, comment="自定义游戏背景图 URL"
+    )
+    text_speed: Mapped[str] = mapped_column(
+        String(16), default="normal",
+        comment="文字显示速度: slow / normal / fast / instant"
+    )
+    theme: Mapped[str] = mapped_column(
+        String(16), default="dark",
+        comment="界面主题: dark / light / custom"
+    )
+    font_size: Mapped[int] = mapped_column(
+        Integer, default=16, comment="对话文字字号 (px)"
+    )
+
+    # ---- 游戏偏好 ----
+    auto_advance: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="是否自动推进对话"
+    )
+    show_affection_popup: Mapped[bool] = mapped_column(
+        Boolean, default=True, comment="是否显示好感度变化弹窗"
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    # relationships
+    user: Mapped["User"] = relationship("User", back_populates="game_settings")

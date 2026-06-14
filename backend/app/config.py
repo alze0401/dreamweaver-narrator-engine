@@ -29,7 +29,7 @@ class AppSettings(BaseSettings):
         description="DeepSeek API 基础 URL"
     )
     deepseek_model: str = Field(
-        default="deepseek-chat",
+        default="deepseek-v4-pro",
         description="使用的模型名称"
     )
 
@@ -86,6 +86,26 @@ class AppSettings(BaseSettings):
     cache_ttl_game_session: int = Field(default=3600)
     cache_ttl_template: int = Field(default=1800)
     cache_ttl_dialogue: int = Field(default=300)
+
+    # ---- JWT 认证 ----
+    jwt_secret_key: str = Field(default="dreamweaver-jwt-secret-key-2026-change-me")
+    jwt_algorithm: str = Field(default="HS256")
+    jwt_expire_minutes: int = Field(default=1440)  # 24 小时
+
+    # ---- MinIO 对象存储 ----
+    minio_endpoint: str = Field(default="127.0.0.1:9000", description="MinIO 服务地址")
+    minio_access_key: str = Field(default="minioadmin", description="MinIO 访问密钥")
+    minio_secret_key: str = Field(default="minioadmin123", description="MinIO 密钥")
+    minio_secure: bool = Field(default=False, description="是否使用 HTTPS")
+    minio_bucket: str = Field(default="dreamweaver-assets", description="存储桶名称")
+    minio_public_url: str = Field(
+        default="http://127.0.0.1:9000/dreamweaver-assets",
+        description="公开访问的基础 URL（拼接 object_name 即可访问）"
+    )
+
+    # ---- 文件上传限制 ----
+    upload_max_image_mb: int = Field(default=5, description="图片上传大小限制 (MB)")
+    upload_max_audio_mb: int = Field(default=20, description="音频上传大小限制 (MB)")
 
     # ---- 路径配置 ----
     @property

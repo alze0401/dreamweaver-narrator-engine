@@ -7,11 +7,16 @@ Narrator Engine - 游戏流程 API
   - 推进剧情
 """
 
+import traceback
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from loguru import logger
 
 from app.database import get_db
 from app.engine.narrator import narrator
+from app.auth import get_current_user, get_optional_user
+from app.models import User
 from app.schemas.schemas import (
     GameStartRequest,
     GameStartResponse,
@@ -27,9 +32,10 @@ router = APIRouter()
 async def start_game(
     request: GameStartRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    创建一个新的游戏会话并开始冒险。
+    创建一个新的游戏会话并开始冒险。需要登录。
 
     流程:
       1. 加载世界观和剧本模板
@@ -45,9 +51,12 @@ async def start_game(
             player_name=request.player_name,
             player_data=request.player_data,
             character_template_ids=request.character_template_ids,
+            user_id=current_user.id,
         )
         return GameStartResponse(**result)
     except Exception as e:
+        tb = traceback.format_exc()
+        logger.error(f"游戏初始化失败: {type(e).__name__}: {e}\n{tb}")
         raise HTTPException(status_code=500, detail=f"游戏初始化失败: {str(e)}")
 
 
@@ -55,6 +64,7 @@ async def start_game(
 async def get_game_state(
     session_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     获取当前游戏会话的完整状态信息。
@@ -69,6 +79,10 @@ async def get_game_state(
 
     if not session:
         raise HTTPException(status_code=404, detail="游戏会话不存在")
+
+    # 所有权校验
+    if session.user_id and session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权访问此游戏会话")
 
     from app.models import AffectionState, DialogueLog
 
@@ -102,6 +116,7 @@ async def advance_game(
     session_id: str,
     request: DialogueAdvanceRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     推进一轮游戏剧情。

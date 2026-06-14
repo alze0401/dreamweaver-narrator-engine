@@ -10,8 +10,6 @@ Narrator Engine - Prompt 构建器
 好的 Prompt = 好的叙事。
 """
 
-from pathlib import Path
-
 from jinja2 import Environment, FileSystemLoader
 from loguru import logger
 
@@ -98,52 +96,6 @@ class PromptBuilder:
             recent_narration_summary=recent_narration_summary,
         )
 
-    def build_memory_extract_prompt(self, dialogue_text: str) -> str:
-        """
-        构建记忆提取的 Prompt。
-
-        在每轮对话结束后异步调用，让 LLM 从对话中提取关键信息。
-
-        Args:
-            dialogue_text: 本轮对话的完整文本
-
-        Returns:
-            记忆提取 Prompt 文本
-        """
-        try:
-            template = self._env.get_template("memory_extract.j2")
-            return template.render(dialogue_text=dialogue_text)
-        except Exception:
-            logger.warning("memory_extract.j2 不存在，使用内置默认")
-            return self._default_memory_prompt(dialogue_text)
-
-    def build_affection_eval_prompt(
-        self,
-        dialogue_text: str,
-        character_info: dict,
-    ) -> str:
-        """
-        构建好感度评估的 Prompt。
-
-        让 LLM 分析玩家本轮对话对各角色好感度的影响。
-
-        Args:
-            dialogue_text: 本轮对话文本
-            character_info: 当前角色的好感度配置信息
-
-        Returns:
-            好感度评估 Prompt 文本
-        """
-        try:
-            template = self._env.get_template("affection_eval.j2")
-            return template.render(
-                dialogue_text=dialogue_text,
-                character_info=character_info,
-            )
-        except Exception:
-            logger.warning("affection_eval.j2 不存在，使用内置默认")
-            return self._default_affection_prompt(dialogue_text, character_info)
-
     # ------------------------------------------------------------------
     #  内置默认 Prompt（模板文件不存在时的降级方案）
     # ------------------------------------------------------------------
@@ -163,6 +115,8 @@ class PromptBuilder:
             "4. 使用五感描写（视觉、听觉、触觉）增强画面感和沉浸感",
             "5. 每个角色单次发言控制在 2-4 句，避免长篇独白",
             "6. 提供 2-4 个选项，各有侧重，没有明显的「正确答案」",
+            "7. 禁止空洞填充：narration 每句话必须有实际信息。"
+            "禁止写「四周陷入沉默」「只剩微风」「空气凝固」等拖延剧情的废话。直接承接玩家行动。",
             "",
             "## 剧情推进（极重要）",
             "1. 每个选项必须推动剧情发展，包含具体行动或决策。",
@@ -207,11 +161,7 @@ class PromptBuilder:
         # 角色
         for char in (char_ctx or []):
             name = char.get('name', '?')
-            real = char.get('real_name', '')
-            name_note = ""
-            if not char.get('name_revealed') and real and real != name:
-                name_note = f"（真名: {real}，尚未揭示——请在合适的剧情时机让角色自我介绍）"
-            parts.append(f"## 角色: {name}{name_note}")
+            parts.append(f"## 角色: {name}")
             if char.get('personality_summary'):
                 parts.append(f"- 性格: {char['personality_summary']}")
             if char.get('speech_style'):
@@ -245,73 +195,40 @@ class PromptBuilder:
 
         return "\n".join(parts)
 
-    def _default_memory_prompt(self, dialogue_text: str) -> str:
-        """内置的默认记忆提取 Prompt"""
-        return (
-            "分析以下对话，提取需要长期记忆的信息。\n\n"
-            f"对话内容:\n{dialogue_text}\n\n"
-            "请输出 JSON 格式:\n"
-            "{\n"
-            '  "episodic_summary": "场景摘要",\n'
-            '  "new_facts": [{"content": "事实", "importance": 7, "category": "other"}],\n'
-            '  "relationship_changes": [],\n'
-            '  "player_traits_observed": [],\n'
-            '  "plot_threads": []\n'
-            "}"
-        )
-
-    def _default_affection_prompt(self, dialogue_text: str, char_info: dict) -> str:
-        """内置的默认好感度评估 Prompt"""
-        return (
-            f"分析以下对话对角色好感度的影响。\n\n"
-            f"角色信息: {char_info}\n\n"
-            f"对话:\n{dialogue_text}\n\n"
-            "请输出 JSON:\n"
-            '[{"character": "角色名", "dimension": "intimacy", "delta": 2, "reason": "原因"}]'
-        )
-
     def _get_output_schema(self) -> str:
-        """返回 JSON 输出格式的 Schema 描述文本"""
+        """返回结构化输出的行为规则（Pydantic schema 已通过 function calling 传递格式，此处仅补充行为约束）"""
         return (
-            "你必须输出如下 JSON 格式:\n"
-            "{\n"
-            '  "narration": "叙事文本（环境描写、旁白、角色间的过渡动作）",\n'
-            '  "dialogues": [\n'
-            '    {"speaker": "角色显示名", "text": "台词", "emotion": "中文情感标签", "action": "动作描写"}\n'
-            "  ],\n"
-            '  "choices": [\n'
-            '    {"id": "c1", "text": "选项文本", "tone": "语气标签", "hint": "简短提示"}\n'
-            "  ],\n"
-            '  "scene_state": {"location": "地点", "time": "时间", "mood": "氛围"},\n'
-            '  "affection_changes": [\n'
-            '    {"character": "角色显示名", "dimension": "intimacy/trust/respect/curiosity/fear", '
-            '"delta": 2, "reason": "变化原因"}\n'
-            "  ]\n"
-            "}\n"
-            "【重要格式要求】\n"
-            "1. emotion 字段必须使用中文，如: 温和、冷淡、不屑、害羞、惊讶、悲伤、玩味、认真、好奇。禁止使用英文。\n"
-            "2. speaker 字段必须使用角色的「显示名」（见角色列表中的 name 字段）。如果显示名是 ???，就使用 ???。\n"
-            "3. narration 和 dialogues 至少有一个非空。choices 提供 2-4 个选项。\n"
-            "4. dialogues 中每个角色的台词之间应有叙事过渡（在 narration 中描写），不要让角色像排队一样轮流发言。\n"
-            "5. 每轮最多 2-3 个角色的对话，不要在一轮内让所有角色都发言。\n"
+            "你必须输出 JSON 格式的结构化数据，严格遵守以下规则：\n"
             "\n"
-            "【角色名字揭示规则】\n"
-            "1. 如果角色的 name 显示为 ???，说明玩家还不知道这个角色的真名。\n"
-            "2. 在叙事和对话中，你应该用外貌描写来代替名字（如「银发女子」「黑衣剑客」「温柔学姐」）。speaker 字段必须写 ???。\n"
-            "3. **重要**: 在第 2-3 轮对话内，至少让一个角色自然地自我介绍。可以在对话中让角色说出自己的真名（即 real_name 字段中的确切名字）。\n"
-            "4. 自我介绍时，speaker 字段必须从 ??? 切换为 real_name 中的确切名字。不要使用头衔（如「班长」「学姐」）代替真名。\n"
-            "5. 说出真名后，后续所有对话的 speaker 都使用该真名。\n"
-            "6. 其他未揭示名字的角色仍使用 ???，在后续轮次中逐步揭示。\n"
+            "【极重要 — narration 与 dialogues 必须严格分离】\n"
+            "1. narration 只能包含：环境描写、旁白叙述、动作过渡、场景切换。绝对不要在里面写角色台词。\n"
+            "2. 角色的所有台词/对白必须放在 dialogues 数组中。每条包含 speaker（角色名）、text（台词）、emotion（情感）、action（动作）。\n"
+            "3. 禁止在 narration 中使用 [角色名] 或 【角色名】 标签来写台词——那是错误的格式。\n"
+            "4. 禁止在 narration 中附加 [场景:] 标签——场景信息已在 scene_state 中。\n"
+            "5. 当有角色说话时，dialogues 数组不能为空。如果故事中有角色对白，必须拆分到 dialogues 中。\n"
+            "6. 正确示例:\n"
+            '   narration: "晨光洒落，雾气渐散。凝光收回烟斗，嘴角微扬。"\n'
+            '   dialogues: [{"speaker": "凝光", "text": "倒是直爽。", "emotion": "略带赞许", "action": "捋了捋袖口"}]\n'
+            "7. 错误示例（绝对禁止）:\n"
+            '   narration: "[凝光] (捋了捋袖口) 倒是直爽... [甘雨] 若你决定前往..."  ← 台词不能写在 narration 中！\n'
+            '   dialogues: []  ← 有角色对白时 dialogues 不能为空！\n'
             "\n"
-            "【剧情推进规则】\n"
-            "1. 每个选项都应该推动剧情发展，有具体的行动或决策，禁止只出现「继续」「继续探索」等空泛选项。\n"
-            "2. 选项应包含：明确的行动意图、对话选择、或关键决策。例如：「询问她为什么会在这里」「跟随她进入禁地」「转身离开此处」。\n"
-            "3. 每 4-6 轮对话后应该有明显的剧情转折或场景切换。\n"
-            "4. 注意当前章节和剧情钩子（plot_hooks），主动引导玩家接触核心剧情。\n"
-            "5. 随着章节推进，逐步揭示世界秘密和角色背景，不要一次性全部揭露。\n"
+            "【speaker 字段规则】\n"
+            "1. speaker 只能是角色名字（如「甘雨」「凝光」「酒馆老板」）。\n"
+            "2. 禁止用情感词（如「温和」「从容」）、动作词（如「微笑」「叹气」）作为 speaker。\n"
+            "3. emotion 字段使用中文情感标签：温和、冷淡、从容、惊讶、愤怒等。\n"
             "\n"
-            "【好感度变化规则】\n"
-            "1. 每轮都必须在 affection_changes 中评估玩家行为对各角色好感度的影响。\n"
-            "2. character 字段使用角色的显示名（如果尚未揭示名字就写 ???）。\n"
-            "3. 每次变化 delta 范围 -5 到 +5，需要有明确原因。\n"
+            "【choices 选项规则】\n"
+            "1. 提供 3-4 个与剧情相关的具体选项，禁止空泛选项（如「环顾四周」「继续探索」）。\n"
+            "2. 选项只能放在 choices 数组中，禁止写在 dialogues.text 中。\n"
+            "3. 选项之间应有不同语气/态度倾向（如坦诚 vs 谨慎 vs 大胆）。\n"
+            "\n"
+            "【affection_changes 规则】\n"
+            "1. 不能为空数组，每轮至少 1 条好感度变化记录。\n"
+            "2. dimension 只能是: intimacy, trust, respect, curiosity, fear 之一。\n"
+            "3. delta 范围 -5 到 +5，需要有明确原因。\n"
+            "\n"
+            "【scene_state 规则】\n"
+            "1. location 是具体地点名称，time 是具体时间，mood 是氛围词（不能为空）。\n"
+            "2. 如果场景没有变化，保持上一轮的值。\n"
         )

@@ -16,7 +16,10 @@ from app.models.scene_summary import SceneSummary
 from app.models.memory import Memory
 from app.models.player_profile import PlayerProfile
 from app.models.save_slot import SaveSlot
-from app.models.template_models import Template, TemplateCategory, TemplateCategoryMapping, User
+from app.models.template_models import (
+    Template, TemplateCategory, TemplateCategoryMapping,
+    User, UserGameSettings,
+)
 
 # 导出列表，支持 from app.models import * 的写法
 __all__ = [
@@ -31,4 +34,5 @@ __all__ = [
     "TemplateCategory",
     "TemplateCategoryMapping",
     "User",
+    "UserGameSettings",
 ]

@@ -13,6 +13,7 @@ export interface TemplateSummary {
   is_preset: boolean
   description: string
   tags: string[]
+  avatar_url?: string | null
 }
 
 /** 模板完整详情 */
@@ -24,6 +25,8 @@ export interface TemplateDetail {
   is_preset: boolean
   description: string
   data: Record<string, unknown>
+  categories: Array<{ code: string; name: string }>
+  avatar_url?: string | null
 }
 
 // ========== 游戏相关 ==========
@@ -128,6 +131,7 @@ export interface CharacterSummary {
   respect: number
   curiosity: number
   fear: number
+  avatar_url?: string | null
 }
 
 /** 角色详情（含好感度数值） */
@@ -139,6 +143,7 @@ export interface CharacterDetail extends CharacterSummary {
   fear: number
   triggered_events: string[]
   known_secrets: string[]
+  avatar_url?: string | null
 }
 
 // ========== 存档相关 ==========
@@ -178,4 +183,59 @@ export interface Category {
   description: string
   icon: string
   sort_order: number
+}
+
+// ========== 用户认证 ==========
+
+/** 当前用户信息 */
+export interface AuthUser {
+  id: string
+  username: string
+  display_name: string
+  role: 'user' | 'admin'
+  avatar_url?: string | null
+}
+
+/** 登录/注册响应 */
+export interface AuthResponse {
+  access_token: string
+  user: AuthUser
+}
+
+// ========== 文件上传 ==========
+
+/** 上传响应 */
+export interface UploadResponse {
+  url: string
+  message: string
+}
+
+// ========== 游戏设置 ==========
+
+/** 游戏设置 */
+export interface GameSettings {
+  bgm_url: string | null
+  bgm_volume: number
+  bgm_enabled: boolean
+  sfx_volume: number
+  bg_url: string | null
+  text_speed: 'slow' | 'normal' | 'fast' | 'instant'
+  theme: 'dark' | 'light' | 'sakura' | 'ocean' | 'forest' | 'sunset'
+  font_size: number
+  auto_advance: boolean
+  show_affection_popup: boolean
+}
+
+/** 游戏设置更新（部分） */
+export interface GameSettingsUpdate {
+  bgm_url?: string | null
+  bgm_volume?: number
+  bgm_enabled?: boolean
+  sfx_volume?: number
+  bg_url?: string | null
+  text_speed?: 'slow' | 'normal' | 'fast' | 'instant'
+  theme?: 'dark' | 'light' | 'sakura' | 'ocean' | 'forest' | 'sunset'
+  font_size?: number
+  auto_advance?: boolean
+  show_affection_popup?: boolean
 }

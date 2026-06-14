@@ -6,10 +6,11 @@
 
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sparkles, ChevronRight, ChevronLeft, AlertTriangle, RefreshCw, Check, Globe, BookMarked, Users, Tag } from 'lucide-react'
+import { ArrowLeft, Sparkles, ChevronRight, ChevronLeft, AlertTriangle, RefreshCw, Check, Globe, BookMarked, Users, Tag, Plus } from 'lucide-react'
 import { gameApi, categoryApi } from '@/services/api'
 import { useGameStore } from '@/stores/gameStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { TemplateSummary, Category } from '@/types'
 
 const stepLabels = ['选择分类', '选择世界观', '选择剧本', '选择角色', '确认开始']
@@ -30,12 +31,12 @@ const FALLBACK_CATEGORIES: Category[] = [
   { id: 10, code: 'horror', name: '暗黑恐怖', description: '午夜时分的不寒而栗', icon: 'Skull', sort_order: 10 },
   { id: 11, code: 'isekai', name: '异世界', description: '穿越时空的命运交错', icon: 'Portal', sort_order: 11 },
   { id: 12, code: 'ghost', name: '灵异怪谈', description: '人与妖鬼的羁绊', icon: 'Ghost', sort_order: 12 },
+  { id: 13, code: 'custom', name: '自定义&其他', description: '自由创作，无限可能', icon: 'Palette', sort_order: 99 },
 ]
 
 export const TemplateSelect: React.FC = () => {
   const navigate = useNavigate()
   const setLoading = useUIStore((s) => s.setLoading)
-  const setSession = useGameStore((s) => s.setSession)
 
   // 分类状态
   const [categories, setCategories] = useState<Category[]>([])
@@ -72,17 +73,30 @@ export const TemplateSelect: React.FC = () => {
     setLoadingCategories(true)
     setCategoryError('')
     categoryApi.list()
-      .then((cats) => {
+      .then((rawCats) => {
         if (cancelled) return
         // 如果后端返回空数组，使用兜底分类
-        setCategories(cats.length > 0 ? cats : FALLBACK_CATEGORIES)
+        const cats = rawCats.length > 0 ? [...rawCats] : [...FALLBACK_CATEGORIES]
+        // 把"自定义&其他"分类放到最前面
+        cats.sort((a, b) => {
+          if (a.code === 'custom') return -1
+          if (b.code === 'custom') return 1
+          return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+        })
+        setCategories(cats)
         setLoadingCategories(false)
       })
       .catch((err) => {
         if (cancelled) return
         console.error('加载分类失败:', err)
-        // 后端不可用时使用兜底分类
-        setCategories(FALLBACK_CATEGORIES)
+        // 后端不可用时使用兜底分类（也把自定义放前面）
+        const fallback = [...FALLBACK_CATEGORIES]
+        fallback.sort((a, b) => {
+          if (a.code === 'custom') return -1
+          if (b.code === 'custom') return 1
+          return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+        })
+        setCategories(fallback)
         const errMsg = err instanceof Error ? err.message : String(err)
         setCategoryError(`后端请求失败: ${errMsg}。当前展示预置分类，启动后端后可查看完整内容。`)
         setLoadingCategories(false)
@@ -134,6 +148,11 @@ export const TemplateSelect: React.FC = () => {
   // ---------- 开始游戏 ----------
   const handleStart = async () => {
     if (!selectedWorld || !selectedScenario || selectedChars.length === 0) return
+    // 检查登录状态
+    if (!useAuthStore.getState().isAuthenticated) {
+      window.dispatchEvent(new CustomEvent('auth-required'))
+      return
+    }
     setLoading(true, '正在编织梦境...')
     try {
       const res = await gameApi.start({
@@ -143,8 +162,11 @@ export const TemplateSelect: React.FC = () => {
         player_data: {},
         character_template_ids: selectedChars,
       })
-      setSession(res.session_id)
+      // 先重置游戏状态，清除上一局的残留数据
       const store = useGameStore.getState()
+      store.reset()
+      // 设置新会话
+      store.setSession(res.session_id)
       store.addMessages([
         { id: '', type: 'narration', text: res.opening_narration },
         ...res.opening_dialogues.map(d => ({
@@ -232,7 +254,7 @@ export const TemplateSelect: React.FC = () => {
           ${isSelected
             ? 'bg-primary/25 shadow-[0_0_16px_rgba(168,130,255,0.2)]'
             : 'bg-surface-light/10 group-hover:bg-primary/15 group-hover:shadow-[0_0_12px_rgba(168,130,255,0.1)]'}`}>
-          <span className="text-2xl">{cat.icon === 'Mountain' ? '⛰️' : cat.icon === 'Swords' ? '⚔️' : cat.icon === 'Crown' ? '👑' : cat.icon === 'Moon' ? '🌙' : cat.icon === 'GraduationCap' ? '🎓' : cat.icon === 'Sparkles' ? '✨' : cat.icon === 'Cpu' ? '🤖' : cat.icon === 'Rocket' ? '🚀' : cat.icon === 'Search' ? '🔍' : cat.icon === 'Skull' ? '💀' : cat.icon === 'Portal' ? '🌀' : cat.icon === 'Ghost' ? '👻' : '📖'}</span>
+          <span className="text-2xl">{cat.icon === 'Mountain' ? '⛰️' : cat.icon === 'Swords' ? '⚔️' : cat.icon === 'Crown' ? '👑' : cat.icon === 'Moon' ? '🌙' : cat.icon === 'GraduationCap' ? '🎓' : cat.icon === 'Sparkles' ? '✨' : cat.icon === 'Cpu' ? '🤖' : cat.icon === 'Rocket' ? '🚀' : cat.icon === 'Search' ? '🔍' : cat.icon === 'Skull' ? '💀' : cat.icon === 'Portal' ? '🌀' : cat.icon === 'Ghost' ? '👻' : cat.icon === 'Palette' ? '🎨' : '📖'}</span>
         </div>
         <div className="min-w-0 flex-1">
           <h3 className={`font-semibold text-[15px] transition-colors duration-200
@@ -294,6 +316,25 @@ export const TemplateSelect: React.FC = () => {
                   (step === 1 && selectedWorld) ||
                   (step === 2 && selectedScenario) ||
                   (step === 3 && selectedChars.length > 0)
+
+  // ---------- 创建模板按钮 ----------
+  const CreateTemplateButton = () => (
+    <button
+      onClick={() => navigate('/templates')}
+      className="w-full text-left p-4 rounded-2xl border border-dashed border-primary/20
+                 hover:border-primary/40 hover:bg-primary/[0.04] transition-all duration-300
+                 flex items-center gap-3 group"
+    >
+      <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0
+                      group-hover:bg-primary/20 transition-colors">
+        <Plus size={16} className="text-primary-light" />
+      </div>
+      <div>
+        <p className="text-primary-light text-sm font-medium">创建自定义模板</p>
+        <p className="text-text-dim/50 text-[11px] mt-0.5">创建后自动返回选择页面</p>
+      </div>
+    </button>
+  )
 
   const handleBack = () => {
     if (step === 0) {
@@ -433,12 +474,16 @@ export const TemplateSelect: React.FC = () => {
           {step === 1 && (
             <div className="max-w-2xl mx-auto animate-fade-in">
               {worlds.length === 0 ? (
-                <div className="text-center py-12 text-text-dim/50">
-                  <Globe size={32} className="mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">该分类下暂无世界观模板</p>
+                <div className="space-y-3">
+                  <div className="text-center py-8 text-text-dim/50">
+                    <Globe size={32} className="mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">该分类下暂无世界观模板</p>
+                  </div>
+                  <CreateTemplateButton />
                 </div>
               ) : (
                 <div className="grid gap-3">
+                  <CreateTemplateButton />
                   {worlds.map(w => renderCard(w, selectedWorld === w.template_id, () => setSelectedWorld(w.template_id)))}
                 </div>
               )}
@@ -450,12 +495,16 @@ export const TemplateSelect: React.FC = () => {
           {step === 2 && (
             <div className="max-w-2xl mx-auto animate-fade-in">
               {scenarios.length === 0 ? (
-                <div className="text-center py-12 text-text-dim/50">
-                  <BookMarked size={32} className="mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">该分类下暂无剧本模板</p>
+                <div className="space-y-3">
+                  <div className="text-center py-8 text-text-dim/50">
+                    <BookMarked size={32} className="mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">该分类下暂无剧本模板</p>
+                  </div>
+                  <CreateTemplateButton />
                 </div>
               ) : (
                 <div className="grid gap-3">
+                  <CreateTemplateButton />
                   {scenarios.map(s => renderCard(s, selectedScenario === s.template_id, () => setSelectedScenario(s.template_id)))}
                 </div>
               )}
@@ -471,12 +520,16 @@ export const TemplateSelect: React.FC = () => {
                 <span>选择至少一个角色开始冒险（可多选，已选 <span className="text-primary-light">{selectedChars.length}</span> 个）</span>
               </div>
               {characters.length === 0 ? (
-                <div className="text-center py-12 text-text-dim/50">
-                  <Users size={32} className="mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">该分类下暂无角色模板</p>
+                <div className="space-y-3">
+                  <div className="text-center py-8 text-text-dim/50">
+                    <Users size={32} className="mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">该分类下暂无角色模板</p>
+                  </div>
+                  <CreateTemplateButton />
                 </div>
               ) : (
                 <div className="grid gap-3">
+                  <CreateTemplateButton />
                   {characters.map(c => renderCard(c, selectedChars.includes(c.template_id), () => toggleChar(c.template_id)))}
                 </div>
               )}

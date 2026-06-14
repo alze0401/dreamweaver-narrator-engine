@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts'
 import type { CharacterSummary } from '@/types'
 import { AffectionBar } from './AffectionBar'
+import { AvatarLightbox } from './AvatarLightbox'
 import { getCharacterPortrait } from '@/utils/assets'
 
 /** 维度中文名称映射 */
@@ -40,6 +41,20 @@ const RANK_BORDER: Record<string, string> = {
   '挚爱': 'ring-rose-400/50',
 }
 
+/** 根据角色名生成稳定的渐变背景色 */
+const nameToGradient = (name: string): string => {
+  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  const gradients = [
+    'from-purple-500/30 to-pink-500/20',
+    'from-blue-500/30 to-cyan-500/20',
+    'from-rose-500/30 to-orange-500/20',
+    'from-emerald-500/30 to-teal-500/20',
+    'from-indigo-500/30 to-violet-500/20',
+    'from-amber-500/30 to-yellow-500/20',
+  ]
+  return gradients[hash % gradients.length]
+}
+
 interface Props {
   character: CharacterSummary
 }
@@ -48,16 +63,23 @@ export const CharacterCard: React.FC<Props> = ({ character }) => {
   const color = RANK_COLORS[character.current_rank] || '#a882ff'
   const ringClass = RANK_BORDER[character.current_rank] || 'ring-primary/30'
   const avatarLetter = character.character_name.charAt(0)
+  const avatarGradient = nameToGradient(character.character_name)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   // 角色立绘检测（不存在时降级为首字母头像）
+  // 优先使用后端返回的 avatar_url，降级到静态资源
   const [portraitUrl, setPortraitUrl] = useState<string | null>(null)
   useEffect(() => {
+    if (character.avatar_url) {
+      setPortraitUrl(character.avatar_url)
+      return
+    }
     const url = getCharacterPortrait(character.character_name, character.character_id)
     const img = new Image()
     img.onload = () => setPortraitUrl(url)
     img.onerror = () => setPortraitUrl(null)
     img.src = url
-  }, [character.character_name, character.character_id])
+  }, [character.character_name, character.character_id, character.avatar_url])
 
   // 构建雷达图数据
   const radarData = [
@@ -72,29 +94,34 @@ export const CharacterCard: React.FC<Props> = ({ character }) => {
     <div className="glass-panel p-3.5 transition-all duration-300">
       {/* 上半部分：头像 + 基本信息 */}
       <div className="flex items-start gap-3 mb-3">
-        {/* 头像（立绘 or 首字母） */}
-        <div className={`w-12 h-12 rounded-xl shrink-0 overflow-hidden
-                        bg-gradient-to-br from-surface-light to-surface-dark
-                        ring-2 ${ringClass} transition-all duration-500
-                        flex items-center justify-center`}>
+        {/* 头像（立绘 or 渐变首字母）圆形 QQ 风格 */}
+        <div
+          className={`w-12 h-12 rounded-full overflow-hidden shrink-0
+                      bg-gradient-to-br ${portraitUrl ? 'from-surface-light to-surface-dark' : avatarGradient}
+                      ring-2 ${ringClass} transition-all duration-500
+                      flex items-center justify-center
+                      ${portraitUrl ? 'cursor-zoom-in' : ''}`}
+          onClick={() => portraitUrl && setLightboxOpen(true)}
+        >
           {portraitUrl ? (
             <img src={portraitUrl} alt={character.character_name}
-                 className="w-full h-full object-cover" />
+                 className="w-full h-full object-contain"
+                 onError={() => setPortraitUrl(null)} />
           ) : (
-            <span className="text-text-bright font-bold text-base">{avatarLetter}</span>
+            <span className="text-text-bright font-bold text-lg drop-shadow-sm">{avatarLetter}</span>
           )}
         </div>
 
         <div className="flex-1 min-w-0">
           <h4 className="text-text-bright text-sm font-medium truncate">{character.character_name}</h4>
-          <p className="text-text-dim/50 text-[11px] mt-0.5 truncate">{character.relationship_label}</p>
+          <p className="text-text-dim/70 text-[11px] mt-0.5 truncate">{character.relationship_label}</p>
           {/* 好感度等级 + 综合分数 */}
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
                   style={{ color, background: `${color}15`, border: `1px solid ${color}30` }}>
               {character.current_rank}
             </span>
-            <span className="text-text-dim/30 text-[10px]">
+            <span className="text-text-dim/50 text-[10px]">
               {character.overall_score.toFixed(0)}/100
             </span>
           </div>
@@ -124,6 +151,15 @@ export const CharacterCard: React.FC<Props> = ({ character }) => {
           </RadarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* 头像放大浮层 */}
+      {lightboxOpen && portraitUrl && (
+        <AvatarLightbox
+          src={portraitUrl}
+          alt={character.character_name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   )
 }

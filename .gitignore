@@ -51,6 +51,12 @@ Thumbs.db
 *.ppt
 *.zip
 *.rar
+*.mp3
+*.onnx
+*.tar.gz
+chroma_model/
+backend/.env.prod
+backend/debug_check.py
 
 # ---- 日志 ----
 *.log

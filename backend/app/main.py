@@ -40,7 +40,8 @@ if sys.platform == "win32":
 from app.config import get_settings
 from app.database import init_db, get_db
 from app.cache import cache
-from app.api import game, character, template, save, dialogue, category
+from app.api import game, character, template, save, dialogue, category, auth, upload
+from app.api import settings as settings_api
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +75,42 @@ async def lifespan(app: FastAPI):
         await cache.connect()
     except Exception as e:
         logger.warning(f"Redis 连接失败（缓存功能不可用）: {e}")
+
+    # 创建超级管理员账号（如果不存在）
+    try:
+        from sqlalchemy import select
+        from app.models.template_models import User
+        from app.auth import hash_password
+        from app.database import engine
+        from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession
+
+        async with _AsyncSession(engine) as admin_db:
+            stmt = select(User).where(User.username == "admin")
+            result = await admin_db.execute(stmt)
+            admin_user = result.scalar_one_or_none()
+            if not admin_user:
+                admin_user = User(
+                    username="admin",
+                    password_hash=hash_password("zxz.18730988025"),
+                    display_name="超级管理员",
+                    email="admin@dreamweaver.local",
+                    role="admin",
+                )
+                admin_db.add(admin_user)
+                await admin_db.commit()
+                logger.info("✅ 超级管理员账号已创建: admin")
+            else:
+                logger.info("超级管理员账号已存在")
+    except Exception as e:
+        logger.warning(f"创建管理员账号失败: {e}")
+
+    # 初始化 MinIO 存储桶
+    try:
+        from app.storage import storage as minio_storage
+        minio_storage.ensure_bucket()
+        logger.info("MinIO 存储桶初始化完成")
+    except Exception as e:
+        logger.warning(f"MinIO 初始化失败（上传功能不可用）: {e}")
 
     logger.info("[织梦绮谭] started!")
 
@@ -116,12 +153,15 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # 注册 API 路由
 # ---------------------------------------------------------------------------
+app.include_router(auth.router,      prefix="/api/auth",      tags=["用户认证"])
 app.include_router(game.router,      prefix="/api/game",      tags=["游戏流程"])
 app.include_router(character.router, prefix="/api/game",      tags=["角色管理"])
 app.include_router(category.router,  prefix="/api/categories", tags=["模板分类"])
 app.include_router(template.router,  prefix="/api/templates", tags=["模板管理"])
 app.include_router(save.router,      prefix="/api/saves",     tags=["存档管理"])
 app.include_router(dialogue.router,  prefix="/api/dialogue",  tags=["对话交互"])
+app.include_router(upload.router,    prefix="/api/upload",    tags=["文件上传"])
+app.include_router(settings_api.router,  prefix="/api/settings",  tags=["游戏设置"])
 
 
 # ---------------------------------------------------------------------------
@@ -162,8 +202,8 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     # Redis
     try:
         from app.cache import cache
-        if cache._redis:
-            await cache._redis.ping()
+        if cache._pool:
+            await cache._pool.ping()
             result["redis"] = "ok"
         else:
             result["redis"] = "not connected"

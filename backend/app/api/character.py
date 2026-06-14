@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.affection import AffectionState
+from app.models.template_models import Template
 from app.schemas.schemas import CharacterSummary, CharacterDetail
 
 router = APIRouter()
@@ -38,6 +39,14 @@ async def list_characters(
     if not characters:
         raise HTTPException(status_code=404, detail="该会话没有角色")
 
+    # 收集所有 character_id，批量查询模板获取 avatar_url
+    char_ids = [c.character_id for c in characters]
+    template_stmt = select(Template.template_id, Template.avatar_url).where(
+        Template.template_id.in_(char_ids)
+    )
+    template_result = await db.execute(template_stmt)
+    avatar_map = {row.template_id: row.avatar_url for row in template_result.all()}
+
     return [
         CharacterSummary(
             character_id=c.character_id,
@@ -50,6 +59,7 @@ async def list_characters(
             respect=c.respect,
             curiosity=c.curiosity,
             fear=c.fear,
+            avatar_url=avatar_map.get(c.character_id),
         )
         for c in characters
     ]
@@ -79,6 +89,13 @@ async def get_character_detail(
     if not char:
         raise HTTPException(status_code=404, detail="角色不存在")
 
+    # 查询模板获取 avatar_url
+    template_stmt = select(Template.avatar_url).where(
+        Template.template_id == character_id
+    )
+    template_result = await db.execute(template_stmt)
+    avatar_url = template_result.scalar_one_or_none()
+
     return CharacterDetail(
         character_id=char.character_id,
         character_name=char.character_name,
@@ -92,4 +109,5 @@ async def get_character_detail(
         overall_score=char.overall_score,
         triggered_events=char.triggered_events,
         known_secrets=char.known_secrets,
+        avatar_url=avatar_url,
     )

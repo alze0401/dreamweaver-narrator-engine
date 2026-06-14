@@ -7,7 +7,11 @@ Narrator Engine - LLM 抽象基类
 """
 
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator
+from typing import AsyncGenerator, TypeVar, Type
+
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class LLMMessage:
@@ -79,3 +83,26 @@ class BaseLLMProvider(ABC):
             每次 yield 一个文本片段 (str)
         """
         ...
+
+    async def structured_completion(
+        self,
+        messages: list[LLMMessage],
+        output_model: Type[T],
+        temperature: float = 0.75,
+        max_tokens: int = 2048,
+        top_p: float = 0.9,
+    ) -> T:
+        """
+        结构化输出 —— 使用 LangChain with_structured_output 强制 LLM 按 Pydantic 模型输出。
+
+        Args:
+            messages: 对话消息列表
+            output_model: Pydantic 模型类
+            temperature: 温度参数
+            max_tokens: 最大生成 token 数
+            top_p: 核采样参数
+
+        Returns:
+            Pydantic 模型实例
+        """
+        raise NotImplementedError("子类需要实现 structured_completion")

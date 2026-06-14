@@ -2,13 +2,14 @@
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from app.database import get_db
-from app.models.template_models import TemplateCategory, Template
+from app.models.template_models import TemplateCategory, Template, User
+from app.auth import get_optional_user
 
 router = APIRouter()
 
@@ -46,6 +47,7 @@ async def list_templates_by_category(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     """获取指定分类下的模板列表（支持类型过滤 + 分页）"""
 
@@ -64,6 +66,15 @@ async def list_templates_by_category(
             .where(TemplateCategory.id == category.id)
             .options(selectinload(Template.categories))
         )
+
+        # 权限过滤：公共预设 OR 当前用户创建
+        if current_user:
+            base_stmt = base_stmt.where(
+                (Template.is_preset == True) | (Template.creator_id == current_user.id)
+            )
+        else:
+            base_stmt = base_stmt.where(Template.is_preset == True)
+
         if template_type:
             base_stmt = base_stmt.where(Template.template_type == template_type)
 

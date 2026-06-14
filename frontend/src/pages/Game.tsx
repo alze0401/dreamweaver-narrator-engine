@@ -4,25 +4,25 @@
  * 含场景背景图 + BGM（资源不存在时静默降级）
  */
 
-import React, { useEffect, useRef, useCallback, useState } from 'react'
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Menu, MapPin, Clock, Save, BookOpen } from 'lucide-react'
+import { ArrowLeft, Menu, MapPin, Clock, Save, BookOpen, Volume2, VolumeX, Settings } from 'lucide-react'
 import { useGameStore, type DisplayMessage } from '@/stores/gameStore'
 import { useUIStore } from '@/stores/uiStore'
-import { gameApi, characterApi, saveApi } from '@/services/api'
+import { useBgmStore } from '@/stores/bgmStore'
+import { gameApi, characterApi } from '@/services/api'
 import { DialogueBox } from '@/components/DialogueBox'
 import { ChoicePanel } from '@/components/ChoicePanel'
 import { FreeInput } from '@/components/FreeInput'
 import { SidePanel } from '@/components/SidePanel'
+import { AffectionToast } from '@/components/AffectionToast'
 import { getSceneBackground, getBgmUrl } from '@/utils/assets'
 import type { DialogueChoice } from '@/types'
 
 export const Game: React.FC = () => {
   const navigate = useNavigate()
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
   const turnCountRef = useRef(0)  // 对话轮次计数（用于自动存档）
-  const AUTO_SAVE_INTERVAL = 3     // 每 N 轮自动存档
 
   // Store
   const sessionId = useGameStore((s) => s.sessionId)
@@ -33,6 +33,7 @@ export const Game: React.FC = () => {
   const chapter = useGameStore((s) => s.chapter)
   const totalChapters = useGameStore((s) => s.totalChapters)
   const currentTurn = useGameStore((s) => s.currentTurn)
+  const characters = useGameStore((s) => s.characters)
   const addMessages = useGameStore((s) => s.addMessages)
   const setChoices = useGameStore((s) => s.setChoices)
   const setGenerating = useGameStore((s) => s.setGenerating)
@@ -42,13 +43,24 @@ export const Game: React.FC = () => {
   const setProgress = useGameStore((s) => s.setProgress)
   const toggleSidePanel = useUIStore((s) => s.toggleSidePanel)
 
+  // ---- 好感度飘出提示 ----
+  const recentAffectionChanges = useGameStore((s) => s.recentAffectionChanges)
+
+  // ---- 角色头像映射（speaker name → avatar_url） ----
+  const avatarMap = useMemo(() => {
+    const map: Record<string, string | null> = {}
+    characters.forEach((c) => {
+      if (c.avatar_url) map[c.character_name] = c.avatar_url
+    })
+    return map
+  }, [characters])
+
   // ---- 场景背景图（加载失败时隐藏） ----
   const [bgUrl, setBgUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const url = getSceneBackground(sceneState.location)
     if (url) {
-      // 预检测图片是否可加载
       const img = new Image()
       img.onload = () => setBgUrl(url)
       img.onerror = () => setBgUrl(null)
@@ -58,53 +70,59 @@ export const Game: React.FC = () => {
     }
   }, [sceneState.location])
 
-  // ---- BGM（加载失败时静默） ----
-  const [bgmUrl, setBgmUrl] = useState<string | null>(null)
+  // ---- BGM（全局播放，此处仅控制 mood 切换） ----
+  const bgmMuted = useBgmStore((s) => s.muted)
+  const bgmEnabled = useBgmStore((s) => s.enabled)
+  const toggleBgmMute = useBgmStore((s) => s.toggleMuted)
+  const setGlobalBgmUrl = useBgmStore((s) => s.setBgmUrl)
   const prevMoodRef = useRef<string | undefined>()
 
+  // 根据 mood 切换全局 BGM 曲目
   useEffect(() => {
     const mood = sceneState.mood
     if (mood === prevMoodRef.current) return
     prevMoodRef.current = mood
 
-    const url = getBgmUrl(mood)
-    if (url) {
-      // 预检测音频是否可加载
-      const audio = new Audio()
-      audio.preload = 'auto'
-      audio.oncanplaythrough = () => {
-        setBgmUrl(url)
-      }
-      audio.onerror = () => {
-        setBgmUrl(null)
-      }
-      audio.src = url
-    } else {
-      setBgmUrl(null)
+    const moodUrl = getBgmUrl(mood)
+    if (moodUrl) {
+      // 有匹配的 mood BGM → 切换
+      setGlobalBgmUrl(moodUrl)
     }
+    // 如果没有匹配的 mood BGM → 保持当前曲目不变
   }, [sceneState.mood])
 
-  // 当 bgmUrl 变化时控制播放
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    if (bgmUrl) {
-      if (audio.src !== window.location.origin + bgmUrl) {
-        audio.src = bgmUrl
-      }
-      audio.volume = 0.3
-      audio.loop = true
-      audio.play().catch(() => { /* 自动播放被浏览器阻止，静默忽略 */ })
-    } else {
-      audio.pause()
-    }
-  }, [bgmUrl])
+  // 切换静音（来自 bgmStore）
 
   // ---- 基本逻辑 ----
   useEffect(() => {
     if (!sessionId) navigate('/')
   }, [sessionId, navigate])
+
+  // ---- 主题同步（从设置页返回时自动应用最新主题） ----
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem('dw_theme')
+      if (t) document.documentElement.setAttribute('data-theme', t)
+    } catch {}
+    const handleThemeChange = (e: Event) => {
+      const theme = (e as CustomEvent).detail?.theme
+      if (theme) document.documentElement.setAttribute('data-theme', theme)
+    }
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          const t = localStorage.getItem('dw_theme')
+          if (t) document.documentElement.setAttribute('data-theme', t)
+        } catch {}
+      }
+    }
+    window.addEventListener('dw:themeChanged', handleThemeChange)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('dw:themeChanged', handleThemeChange)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [])
 
   useEffect(() => {
     if (!sessionId) return
@@ -132,13 +150,14 @@ export const Game: React.FC = () => {
     if (res.progress) setProgress(res.progress)
     setGenerating(false)
 
-    // ---- 自动存档逻辑 ----
+    // ---- 自动存档逻辑（暂时关闭）----
     turnCountRef.current += 1
-    if (sessionId && turnCountRef.current % AUTO_SAVE_INTERVAL === 0) {
-      saveApi.autoSave(sessionId).catch((err) => {
-        console.warn('自动存档失败（不影响游戏）:', err)
-      })
-    }
+    // if (sessionId && turnCountRef.current % AUTO_SAVE_INTERVAL === 0
+    //     && useAuthStore.getState().isAuthenticated) {
+    //   saveApi.autoSave(sessionId).catch((err) => {
+    //     console.warn('自动存档失败（不影响游戏）:', err)
+    //   })
+    // }
   }, [addMessages, setChoices, setScene, addAffectionChanges, setGenerating, setProgress, sessionId])
 
   const sendInput = useCallback(async (inputType: 'choice' | 'free', content: string) => {
@@ -161,7 +180,8 @@ export const Game: React.FC = () => {
     addMessages([{ id: '', type: 'player', text: choice.text }])
     setChoices([])
     setGenerating(true)
-    gameApi.advance(sessionId, 'choice', choice.id)
+    // 发送 choice.text（而非 choice.id），确保 LLM 能看到玩家实际选择的内容
+    gameApi.advance(sessionId, 'choice', choice.text)
       .then(processResponse)
       .catch((err) => {
         console.error('剧情推进失败:', err)
@@ -173,7 +193,7 @@ export const Game: React.FC = () => {
   const handleFreeInput = (text: string) => sendInput('free', text)
 
   return (
-    <div className="h-screen flex flex-col bg-surface-dark overflow-hidden relative">
+    <div className="h-screen flex flex-col overflow-hidden relative game-container">
 
       {/* ====== 场景背景图 ====== */}
       {bgUrl && (
@@ -188,13 +208,10 @@ export const Game: React.FC = () => {
         />
       )}
       {/* 背景遮罩（始终有，保证文字可读性） */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-surface-dark/80 via-surface-dark/60 to-surface-dark/90" />
-
-      {/* ====== BGM 音频元素 ====== */}
-      <audio ref={audioRef} loop preload="auto" />
+      <div className="absolute inset-0 z-0 game-bg-overlay" />
 
       {/* ====== 顶部栏 ====== */}
-      <header className="shrink-0 z-10 bg-surface-dark/50 backdrop-blur-md border-b border-white/[0.03]">
+      <header className="shrink-0 z-10 game-header border-b border-white/[0.03]">
         <div className="flex items-center justify-between px-4 py-2.5">
           <div className="flex items-center gap-3">
             <button
@@ -223,6 +240,18 @@ export const Game: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* BGM 静音/开启切换 */}
+            <button
+              onClick={toggleBgmMute}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors
+                         ${bgmMuted || !bgmEnabled
+                           ? 'text-text-dim/40 hover:bg-surface-light/50 hover:text-text-dim'
+                           : 'text-primary-light/70 hover:bg-primary/10 hover:text-primary-light'
+                         }`}
+              title={bgmMuted ? '开启音乐' : '静音'}
+            >
+              {bgmMuted || !bgmEnabled ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </button>
             <button
               onClick={() => navigate('/load-save')}
               className="w-8 h-8 rounded-lg flex items-center justify-center
@@ -230,6 +259,14 @@ export const Game: React.FC = () => {
               title="存档管理"
             >
               <Save size={15} className="text-text-dim" />
+            </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-8 h-8 rounded-lg flex items-center justify-center
+                         hover:bg-surface-light/50 transition-colors"
+              title="设置"
+            >
+              <Settings size={15} className="text-text-dim" />
             </button>
             <button
               onClick={toggleSidePanel}
@@ -265,6 +302,7 @@ export const Game: React.FC = () => {
             key={msg.id || index}
             message={msg}
             isLatest={index === messages.length - 1}
+            avatarUrl={msg.speaker ? avatarMap[msg.speaker] ?? null : null}
           />
         ))}
 
@@ -289,8 +327,7 @@ export const Game: React.FC = () => {
       </div>
 
       {/* ====== 底部输入区 ====== */}
-      <div className="shrink-0 px-4 py-3 max-w-3xl mx-auto w-full relative z-10
-                      bg-gradient-to-t from-surface-dark via-surface-dark/95 to-transparent">
+      <div className="shrink-0 px-4 py-3 max-w-3xl mx-auto w-full relative z-10 game-input-area">
         <div className="divider-gradient mb-3" />
 
         <ChoicePanel
@@ -307,6 +344,9 @@ export const Game: React.FC = () => {
 
       {/* 侧边栏 */}
       <SidePanel />
+
+      {/* 好感度飘出提示 */}
+      <AffectionToast changes={recentAffectionChanges} />
     </div>
   )
 }

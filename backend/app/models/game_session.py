@@ -8,8 +8,9 @@ GameSession 是整个游戏的核心实体，一次完整的游戏流程对应�
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Integer, JSON, DateTime, Text, func
+from sqlalchemy import String, Integer, JSON, DateTime, Text, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.mutable import MutableDict
 
 from app.database import Base
 
@@ -40,6 +41,11 @@ class GameSession(Base):
         String(32), primary_key=True, default=generate_uuid,
         comment="会话唯一ID"
     )
+    user_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+        comment="所属用户ID (可选，未登录时为 NULL)"
+    )
     world_template_id: Mapped[str] = mapped_column(
         String(64), nullable=False,
         comment="世界观模板ID"
@@ -53,7 +59,7 @@ class GameSession(Base):
         comment="玩家角色名"
     )
     player_data: Mapped[dict] = mapped_column(
-        JSON, nullable=False, default=dict,
+        MutableDict.as_mutable(JSON), nullable=False, default=dict,
         comment="玩家自定义数据 (年龄/背景/外观等)"
     )
     chapter: Mapped[int] = mapped_column(
@@ -69,8 +75,8 @@ class GameSession(Base):
         comment="当前场景描述文本"
     )
     world_state: Mapped[dict] = mapped_column(
-        JSON, nullable=False, default=dict,
-        comment="世界状态标志 (全局flag、地点、时间等)"
+        MutableDict.as_mutable(JSON), nullable=False, default=dict,
+        comment="世界状态标志 (全局flag、地点、时间、real_name_map、name_reveals 等)"
     )
     total_turns: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0,

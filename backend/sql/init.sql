@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   `username` VARCHAR(64) NOT NULL COMMENT '用户登录名（唯一）',
   `password_hash` VARCHAR(255) NOT NULL COMMENT '密码哈希值',
   `display_name` VARCHAR(64) DEFAULT NULL COMMENT '用户显示名称/昵称',
+  `email` VARCHAR(128) DEFAULT NULL COMMENT '用户邮箱',
+  `role` VARCHAR(16) NOT NULL DEFAULT 'user' COMMENT '用户角色：user / admin',
+  `avatar_url` VARCHAR(512) DEFAULT NULL COMMENT '用户头像 URL（MinIO 存储地址）',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '账号创建时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`)
@@ -54,6 +57,8 @@ CREATE TABLE IF NOT EXISTS `templates` (
   `is_preset` BOOLEAN DEFAULT FALSE COMMENT '是否为预设模板（TRUE=系统预设对所有用户可见，FALSE=用户自建仅自己可见）',
   `creator_id` VARCHAR(32) DEFAULT NULL COMMENT '创建者用户ID（预设模板为NULL，关联 users 表）',
   `data` JSON NOT NULL COMMENT '模板详细数据（JSON格式，存放世界观/角色/剧本的具体配置）',
+  `avatar_url` VARCHAR(512) DEFAULT NULL COMMENT '角色头像/立绘 或 世界封面图 URL',
+  `bg_url` VARCHAR(512) DEFAULT NULL COMMENT '背景图 URL（世界观模板的场景背景）',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
   PRIMARY KEY (`id`),
@@ -79,6 +84,7 @@ CREATE TABLE IF NOT EXISTS `template_category_mapping` (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `game_sessions` (
   `id` VARCHAR(32) NOT NULL COMMENT '会话唯一ID（UUID）',
+  `user_id` VARCHAR(32) DEFAULT NULL COMMENT '所属用户ID（关联 users 表）',
   `world_template_id` VARCHAR(64) NOT NULL COMMENT '选择的世界观模板ID',
   `scenario_template_id` VARCHAR(64) NOT NULL COMMENT '选择的剧本模板ID',
   `player_name` VARCHAR(64) NOT NULL DEFAULT '主角' COMMENT '玩家角色名称',
@@ -90,7 +96,9 @@ CREATE TABLE IF NOT EXISTS `game_sessions` (
   `total_turns` INT NOT NULL DEFAULT 0 COMMENT '总对话轮次计数',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '会话创建时间',
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  INDEX `idx_user` (`user_id`),
+  CONSTRAINT `fk_sessions_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='游戏会话表';
 
 -- ------------------------------------------------------------
@@ -200,6 +208,7 @@ CREATE TABLE IF NOT EXISTS `player_profiles` (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `save_slots` (
   `id` VARCHAR(32) NOT NULL COMMENT '存档唯一ID（UUID）',
+  `user_id` VARCHAR(32) DEFAULT NULL COMMENT '所属用户ID（关联 users 表）',
   `session_id` VARCHAR(32) NOT NULL COMMENT '所属游戏会话ID',
   `slot_number` INT NOT NULL COMMENT '存档位编号（1-20为用户手动存档，101-103为自动存档）',
   `auto_save` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否为自动存档（TRUE=自动存档）',
@@ -209,10 +218,35 @@ CREATE TABLE IF NOT EXISTS `save_slots` (
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '存档创建时间',
   PRIMARY KEY (`id`),
   INDEX `idx_session` (`session_id`),
-  CONSTRAINT `fk_saves_session` FOREIGN KEY (`session_id`) REFERENCES `game_sessions`(`id`) ON DELETE CASCADE
+  INDEX `idx_user` (`user_id`),
+  CONSTRAINT `fk_saves_session` FOREIGN KEY (`session_id`) REFERENCES `game_sessions`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_saves_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='存档位表';
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ------------------------------------------------------------
+-- 表: user_game_settings - 用户游戏设置表（一对一关联用户）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `user_game_settings` (
+  `id` INT NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `user_id` VARCHAR(32) NOT NULL COMMENT '用户ID（一对一关联 users 表）',
+  `bgm_url` VARCHAR(512) DEFAULT NULL COMMENT '自定义 BGM 文件 URL',
+  `bgm_volume` FLOAT NOT NULL DEFAULT 0.7 COMMENT 'BGM 音量 (0.0 ~ 1.0)',
+  `bgm_enabled` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否启用 BGM',
+  `sfx_volume` FLOAT NOT NULL DEFAULT 0.8 COMMENT '音效音量 (0.0 ~ 1.0)',
+  `bg_url` VARCHAR(512) DEFAULT NULL COMMENT '自定义游戏背景图 URL',
+  `text_speed` VARCHAR(16) NOT NULL DEFAULT 'normal' COMMENT '文字显示速度: slow / normal / fast / instant',
+  `theme` VARCHAR(16) NOT NULL DEFAULT 'dark' COMMENT '界面主题: dark / light / custom',
+  `font_size` INT NOT NULL DEFAULT 16 COMMENT '对话文字字号 (px)',
+  `auto_advance` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否自动推进对话',
+  `show_affection_popup` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否显示好感度变化弹窗',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_id` (`user_id`),
+  CONSTRAINT `fk_settings_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户游戏设置表（一对一关联用户）';
 
 -- ============================================================
 -- 种子数据 (SEED DATA)
@@ -233,7 +267,8 @@ INSERT INTO `template_categories` (`code`, `name`, `description`, `icon`, `sort_
   ('mystery', '悬疑推理', '侦探破案、密室逃脱、心理博弈', 'Search', 9),
   ('postapoc', '末日废土', '丧尸末世、废土生存、文明重建', 'Skull', 10),
   ('isekai', '异世界转生', '穿越召唤、异世界冒险、开挂人生', 'Portal', 11),
-  ('horror', '恐怖灵异', '都市怪谈、灵异事件、克苏鲁', 'Ghost', 12);
+  ('horror', '恐怖灵异', '都市怪谈、灵异事件、克苏鲁', 'Ghost', 12),
+  ('custom', '自定义&其他', '用户自定义模板或不属于其他分类的模板', 'Palette', 99);
 
 -- ------------------------------------------------------------
 -- 种子数据: templates (worlds) - 世界观模板

@@ -7,16 +7,259 @@
    精致二次元 Galgame 暗色主题
    ============================================ */
 
+/* ============================================
+   主题系统 - CSS 变量
+   ============================================ */
+
+/* 默认主题（暗夜 dark） */
+:root,
+[data-theme="dark"] {
+  --theme-body-bg: #0c0a15;
+  --theme-body-color: #e2e0f0;
+  --theme-glass-from: rgba(42, 38, 64, 0.72);
+  --theme-glass-to: rgba(30, 27, 46, 0.56);
+  --theme-glass-border: rgba(255, 255, 255, 0.06);
+  --theme-glass-shadow: rgba(0, 0, 0, 0.35);
+  --theme-dialogue-from: rgba(30, 27, 46, 0.85);
+  --theme-dialogue-to: rgba(20, 17, 32, 0.92);
+  --theme-dialogue-border: rgba(168, 130, 255, 0.1);
+  --theme-selection-bg: rgba(168, 130, 255, 0.35);
+  --theme-scrollbar: rgba(139, 135, 165, 0.3);
+  --theme-title-from: #c4b5fd;
+  --theme-title-mid: #f9a8d4;
+  --theme-title-to: #e0e7ff;
+  --theme-btn-from: #8b5cf6;
+  --theme-btn-mid: #a855f7;
+  --theme-btn-to: #d946ef;
+  --theme-accent-btn-from: #ec4899;
+  --theme-accent-btn-mid: #f472b6;
+  --theme-accent-btn-to: #fb7185;
+  --theme-particle-purple: rgba(168,130,255,0.4);
+  --theme-particle-pink: rgba(244,114,182,0.3);
+  --theme-divider: rgba(168, 130, 255, 0.2);
+  --theme-card-selected-from: rgba(168, 130, 255, 0.12);
+  --theme-card-selected-to: rgba(244, 114, 182, 0.08);
+  --theme-card-selected-border: rgba(168, 130, 255, 0.4);
+  --theme-tint: transparent;
+  --theme-tint-opacity: 0;
+}
+
+/* 晨光（明亮主题） */
+[data-theme="light"] {
+  --theme-body-bg: #f5f0ff;
+  --theme-body-color: #2d2640;
+  --theme-glass-from: rgba(255, 255, 255, 0.78);
+  --theme-glass-to: rgba(245, 240, 255, 0.65);
+  --theme-glass-border: rgba(168, 130, 255, 0.12);
+  --theme-glass-shadow: rgba(100, 80, 140, 0.1);
+  --theme-dialogue-from: rgba(255, 255, 255, 0.88);
+  --theme-dialogue-to: rgba(245, 240, 255, 0.92);
+  --theme-dialogue-border: rgba(168, 130, 255, 0.15);
+  --theme-selection-bg: rgba(168, 130, 255, 0.25);
+  --theme-scrollbar: rgba(139, 135, 165, 0.25);
+  --theme-title-from: #7c3aed;
+  --theme-title-mid: #ec4899;
+  --theme-title-to: #6366f1;
+  --theme-btn-from: #8b5cf6;
+  --theme-btn-mid: #a855f7;
+  --theme-btn-to: #d946ef;
+  --theme-accent-btn-from: #ec4899;
+  --theme-accent-btn-mid: #f472b6;
+  --theme-accent-btn-to: #fb7185;
+  --theme-particle-purple: rgba(168,130,255,0.2);
+  --theme-particle-pink: rgba(244,114,182,0.15);
+  --theme-divider: rgba(168, 130, 255, 0.15);
+  --theme-card-selected-from: rgba(168, 130, 255, 0.08);
+  --theme-card-selected-to: rgba(244, 114, 182, 0.05);
+  --theme-card-selected-border: rgba(168, 130, 255, 0.3);
+  --theme-tint: transparent;
+  --theme-tint-opacity: 0;
+}
+
+/* 樱花（粉嫩主题） */
+[data-theme="sakura"] {
+  --theme-body-bg: #150a12;
+  --theme-body-color: #f0dde8;
+  --theme-glass-from: rgba(64, 38, 55, 0.72);
+  --theme-glass-to: rgba(46, 27, 40, 0.56);
+  --theme-glass-border: rgba(255, 182, 210, 0.08);
+  --theme-glass-shadow: rgba(0, 0, 0, 0.35);
+  --theme-dialogue-from: rgba(46, 27, 40, 0.85);
+  --theme-dialogue-to: rgba(32, 17, 28, 0.92);
+  --theme-dialogue-border: rgba(244, 114, 182, 0.12);
+  --theme-selection-bg: rgba(244, 114, 182, 0.35);
+  --theme-scrollbar: rgba(165, 135, 155, 0.3);
+  --theme-title-from: #f9a8d4;
+  --theme-title-mid: #fda4af;
+  --theme-title-to: #fce7f3;
+  --theme-btn-from: #ec4899;
+  --theme-btn-mid: #f472b6;
+  --theme-btn-to: #fb7185;
+  --theme-accent-btn-from: #f472b6;
+  --theme-accent-btn-mid: #fb7185;
+  --theme-accent-btn-to: #fda4af;
+  --theme-particle-purple: rgba(244,114,182,0.35);
+  --theme-particle-pink: rgba(251,113,133,0.3);
+  --theme-divider: rgba(244, 114, 182, 0.2);
+  --theme-card-selected-from: rgba(244, 114, 182, 0.12);
+  --theme-card-selected-to: rgba(251, 113, 133, 0.08);
+  --theme-card-selected-border: rgba(244, 114, 182, 0.4);
+  --theme-tint: rgba(244, 114, 182, 0.03);
+  --theme-tint-opacity: 1;
+}
+
+/* 深海（蓝调主题） */
+[data-theme="ocean"] {
+  --theme-body-bg: #0a0f1a;
+  --theme-body-color: #d8e4f0;
+  --theme-glass-from: rgba(30, 45, 70, 0.72);
+  --theme-glass-to: rgba(20, 32, 52, 0.56);
+  --theme-glass-border: rgba(100, 180, 255, 0.06);
+  --theme-glass-shadow: rgba(0, 0, 0, 0.4);
+  --theme-dialogue-from: rgba(20, 32, 52, 0.85);
+  --theme-dialogue-to: rgba(12, 22, 38, 0.92);
+  --theme-dialogue-border: rgba(96, 165, 250, 0.1);
+  --theme-selection-bg: rgba(96, 165, 250, 0.35);
+  --theme-scrollbar: rgba(100, 140, 180, 0.3);
+  --theme-title-from: #93c5fd;
+  --theme-title-mid: #67e8f9;
+  --theme-title-to: #e0e7ff;
+  --theme-btn-from: #3b82f6;
+  --theme-btn-mid: #6366f1;
+  --theme-btn-to: #8b5cf6;
+  --theme-accent-btn-from: #06b6d4;
+  --theme-accent-btn-mid: #22d3ee;
+  --theme-accent-btn-to: #67e8f9;
+  --theme-particle-purple: rgba(96,165,250,0.35);
+  --theme-particle-pink: rgba(34,211,238,0.25);
+  --theme-divider: rgba(96, 165, 250, 0.2);
+  --theme-card-selected-from: rgba(96, 165, 250, 0.12);
+  --theme-card-selected-to: rgba(34, 211, 238, 0.08);
+  --theme-card-selected-border: rgba(96, 165, 250, 0.4);
+  --theme-tint: rgba(96, 165, 250, 0.02);
+  --theme-tint-opacity: 1;
+}
+
+/* 翠林（森林主题） */
+[data-theme="forest"] {
+  --theme-body-bg: #0a1510;
+  --theme-body-color: #d8f0e0;
+  --theme-glass-from: rgba(30, 55, 40, 0.72);
+  --theme-glass-to: rgba(20, 40, 30, 0.56);
+  --theme-glass-border: rgba(100, 220, 150, 0.06);
+  --theme-glass-shadow: rgba(0, 0, 0, 0.38);
+  --theme-dialogue-from: rgba(20, 40, 30, 0.85);
+  --theme-dialogue-to: rgba(12, 28, 20, 0.92);
+  --theme-dialogue-border: rgba(52, 211, 153, 0.1);
+  --theme-selection-bg: rgba(52, 211, 153, 0.3);
+  --theme-scrollbar: rgba(100, 165, 130, 0.3);
+  --theme-title-from: #6ee7b7;
+  --theme-title-mid: #a7f3d0;
+  --theme-title-to: #d1fae5;
+  --theme-btn-from: #059669;
+  --theme-btn-mid: #10b981;
+  --theme-btn-to: #34d399;
+  --theme-accent-btn-from: #14b8a6;
+  --theme-accent-btn-mid: #2dd4bf;
+  --theme-accent-btn-to: #6ee7b7;
+  --theme-particle-purple: rgba(52,211,153,0.3);
+  --theme-particle-pink: rgba(110,231,183,0.25);
+  --theme-divider: rgba(52, 211, 153, 0.2);
+  --theme-card-selected-from: rgba(52, 211, 153, 0.12);
+  --theme-card-selected-to: rgba(110, 231, 183, 0.08);
+  --theme-card-selected-border: rgba(52, 211, 153, 0.4);
+  --theme-tint: rgba(52, 211, 153, 0.02);
+  --theme-tint-opacity: 1;
+}
+
+/* 夕照（暖色主题） */
+[data-theme="sunset"] {
+  --theme-body-bg: #150e0a;
+  --theme-body-color: #f0e0d0;
+  --theme-glass-from: rgba(60, 42, 30, 0.72);
+  --theme-glass-to: rgba(42, 30, 22, 0.56);
+  --theme-glass-border: rgba(255, 180, 100, 0.06);
+  --theme-glass-shadow: rgba(0, 0, 0, 0.38);
+  --theme-dialogue-from: rgba(42, 30, 22, 0.85);
+  --theme-dialogue-to: rgba(30, 20, 14, 0.92);
+  --theme-dialogue-border: rgba(251, 146, 60, 0.1);
+  --theme-selection-bg: rgba(251, 146, 60, 0.3);
+  --theme-scrollbar: rgba(165, 130, 100, 0.3);
+  --theme-title-from: #fdba74;
+  --theme-title-mid: #fbbf24;
+  --theme-title-to: #fef3c7;
+  --theme-btn-from: #ea580c;
+  --theme-btn-mid: #f97316;
+  --theme-btn-to: #fb923c;
+  --theme-accent-btn-from: #d97706;
+  --theme-accent-btn-mid: #f59e0b;
+  --theme-accent-btn-to: #fbbf24;
+  --theme-particle-purple: rgba(251,146,60,0.3);
+  --theme-particle-pink: rgba(251,191,36,0.25);
+  --theme-divider: rgba(251, 146, 60, 0.2);
+  --theme-card-selected-from: rgba(251, 146, 60, 0.12);
+  --theme-card-selected-to: rgba(251, 191, 36, 0.08);
+  --theme-card-selected-border: rgba(251, 146, 60, 0.4);
+  --theme-tint: rgba(251, 146, 60, 0.02);
+  --theme-tint-opacity: 1;
+}
+
 /* --- 基础 --- */
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background: #0c0a15;
-  color: #e2e0f0;
+  background: var(--theme-body-bg);
+  color: var(--theme-body-color);
   font-family: "Noto Sans SC", "Noto Sans JP", system-ui, sans-serif;
   overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.3s ease;
+}
+
+/* 主题色调覆盖层 */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: var(--theme-tint);
+  opacity: var(--theme-tint-opacity);
+  transition: background 0.4s ease;
+}
+
+/* 游戏页面主题适配 */
+.game-container {
+  background-color: var(--theme-body-bg);
+  color: var(--theme-body-color);
+  transition: background-color 0.4s ease, color 0.3s ease;
+}
+
+.game-header {
+  background: linear-gradient(
+    180deg,
+    var(--theme-glass-from) 0%,
+    transparent 100%
+  );
+  backdrop-filter: blur(12px);
+  transition: background 0.4s ease;
+}
+
+.game-input-area {
+  background: linear-gradient(
+    to top,
+    var(--theme-body-bg) 0%,
+    var(--theme-body-bg) 50%,
+    transparent 100%
+  );
+  transition: background 0.4s ease;
+}
+
+.game-bg-overlay {
+  background-color: var(--theme-body-bg);
+  opacity: 0.7;
+  transition: background-color 0.4s ease;
 }
 
 /* 滚动条美化 */
@@ -27,16 +270,17 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 135, 165, 0.3);
+  background: var(--theme-scrollbar);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 135, 165, 0.6);
+  background: var(--theme-scrollbar);
+  filter: brightness(1.5);
 }
 
 /* 文本选中色 */
 ::selection {
-  background: rgba(168, 130, 255, 0.35);
+  background: var(--theme-selection-bg);
   color: #fff;
 }
 
@@ -46,47 +290,50 @@ body {
 .glass-panel {
   background: linear-gradient(
     135deg,
-    rgba(42, 38, 64, 0.72) 0%,
-    rgba(30, 27, 46, 0.56) 100%
+    var(--theme-glass-from) 0%,
+    var(--theme-glass-to) 100%
   );
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--theme-glass-border);
   border-radius: 16px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 8px 32px var(--theme-glass-shadow),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: background 0.4s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .glass-panel-strong {
   background: linear-gradient(
     135deg,
-    rgba(42, 38, 64, 0.88) 0%,
-    rgba(30, 27, 46, 0.78) 100%
+    var(--theme-glass-from) 0%,
+    var(--theme-glass-to) 100%
   );
   backdrop-filter: blur(24px) saturate(1.6);
   -webkit-backdrop-filter: blur(24px) saturate(1.6);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 12px 40px var(--theme-glass-shadow),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: background 0.4s ease, border-color 0.3s ease;
 }
 
 /* 对话框毛玻璃 */
 .dialogue-glass {
   background: linear-gradient(
     180deg,
-    rgba(30, 27, 46, 0.85) 0%,
-    rgba(20, 17, 32, 0.92) 100%
+    var(--theme-dialogue-from) 0%,
+    var(--theme-dialogue-to) 100%
   );
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  border: 1px solid rgba(168, 130, 255, 0.1);
+  border: 1px solid var(--theme-dialogue-border);
   border-radius: 20px;
   box-shadow:
-    0 -4px 30px rgba(0, 0, 0, 0.3),
+    0 -4px 30px var(--theme-glass-shadow),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: background 0.4s ease, border-color 0.3s ease;
 }
 
 /* ============================================
@@ -226,17 +473,18 @@ body {
 .title-shimmer {
   background: linear-gradient(
     120deg,
-    #c4b5fd 0%,
-    #f9a8d4 25%,
-    #e0e7ff 50%,
-    #c4b5fd 75%,
-    #f9a8d4 100%
+    var(--theme-title-from) 0%,
+    var(--theme-title-mid) 25%,
+    var(--theme-title-to) 50%,
+    var(--theme-title-from) 75%,
+    var(--theme-title-mid) 100%
   );
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer 6s linear infinite;
+  transition: background 0.4s ease;
 }
 
 .title-glow {
@@ -282,7 +530,7 @@ body {
    渐变按钮
    ============================================ */
 .btn-gradient {
-  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%);
+  background: linear-gradient(135deg, var(--theme-btn-from) 0%, var(--theme-btn-mid) 50%, var(--theme-btn-to) 100%);
   background-size: 200% 200%;
   transition: all 0.3s ease;
 }
@@ -293,7 +541,7 @@ body {
 }
 
 .btn-accent {
-  background: linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #fb7185 100%);
+  background: linear-gradient(135deg, var(--theme-accent-btn-from) 0%, var(--theme-accent-btn-mid) 50%, var(--theme-accent-btn-to) 100%);
   background-size: 200% 200%;
   transition: all 0.3s ease;
 }
@@ -309,13 +557,14 @@ body {
 .card-selected {
   background: linear-gradient(
     135deg,
-    rgba(168, 130, 255, 0.12) 0%,
-    rgba(244, 114, 182, 0.08) 100%
+    var(--theme-card-selected-from) 0%,
+    var(--theme-card-selected-to) 100%
   );
-  border-color: rgba(168, 130, 255, 0.4) !important;
+  border-color: var(--theme-card-selected-border) !important;
   box-shadow:
     0 0 20px rgba(168, 130, 255, 0.1),
     inset 0 0 20px rgba(168, 130, 255, 0.03);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 /* ============================================
@@ -326,7 +575,30 @@ body {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(168, 130, 255, 0.2) 50%,
+    var(--theme-divider) 50%,
     transparent 100%
   );
+  transition: background 0.3s ease;
+}
+
+/* ============================================
+   好感度飘出提示（Toast）
+   ============================================ */
+@keyframes toastFloat {
+  0% {
+    opacity: 0;
+    transform: translateX(40px) scale(0.92);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(50px) translateY(-16px) scale(0.92);
+  }
 }

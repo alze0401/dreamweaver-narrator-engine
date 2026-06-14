@@ -12,7 +12,6 @@ LLM 交互通过 LangGraph 工作流编排（见 narrator_graph.py），
 
 import json
 import re
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +23,6 @@ from app.models import (
     PlayerProfile,
 )
 from app.models.template_models import Template
-from app.engine.prompt_builder import PromptBuilder
 from app.engine.affection import AffectionCalculator
 from app.engine.memory import memory_manager
 from app.engine.narrator_graph import run_narration
@@ -47,7 +45,6 @@ class Narrator:
     def __init__(self):
         """初始化叙事引擎及其子模块"""
         self._settings = get_settings()
-        self._prompt_builder = PromptBuilder()
         self._affection_calc = AffectionCalculator()
 
         logger.info("📖 Narrator 叙事引擎已初始化")
@@ -64,6 +61,7 @@ class Narrator:
         player_name: str,
         player_data: dict,
         character_template_ids: list[str],
+        user_id: str | None = None,
     ) -> dict:
         """
         开始一局新游戏。
@@ -94,6 +92,7 @@ class Narrator:
 
         # ---- 2. 创建游戏会话 ----
         session = GameSession(
+            user_id=user_id,
             world_template_id=world_template_id,
             scenario_template_id=scenario_template_id,
             player_name=player_name,
@@ -113,31 +112,29 @@ class Narrator:
                     "opening_scene", {}
                 ).get("weather", ""),
                 "global_flags": {},
-                "name_reveals": {},  # character_id → bool, 名字是否已揭示
             },
         )
         db.add(session)
         await db.flush()
 
         # ---- 3. 初始化角色好感度 ----
-        # 角色真名映射：character_id → 真名（用于名字揭示系统）
-        real_name_map = {}
         character_contexts = []
         for char_id in character_template_ids:
             char_data = await self._load_template_from_db(db, char_id)
             if char_data:
                 char_info = char_data.get("character", {})
                 aff_config = char_data.get("affection_config", {})
-                real_name = self._extract_canonical_name(
-                    char_info.get("full_name", char_data.get("name", "未知"))
+                char_name = self._extract_canonical_name(
+                    char_info.get("full_name", char_data.get("name", ""))
                 )
-                real_name_map[char_id] = real_name
+                # 如果模板没有名字，使用占位符（AI 将在叙事中根据世界观生成合适的名字）
+                if not char_name or char_name == "未知":
+                    char_name = "某位角色"
 
-                # 初始显示 "???"，等角色自我介绍后再揭示真名
                 affection = AffectionState(
                     session_id=session.id,
                     character_id=char_id,
-                    character_name="???",
+                    character_name=char_name,
                     intimacy=aff_config.get("initial_value", 0),
                     trust=aff_config.get("initial_value", 0),
                     respect=aff_config.get("initial_value", 0),
@@ -148,9 +145,6 @@ class Narrator:
                 )
                 db.add(affection)
                 character_contexts.append(self._build_character_context(char_data, affection))
-
-        # 将真名映射存入 world_state，供后续揭示使用
-        session.world_state["real_name_map"] = real_name_map
 
         # ---- 4. 创建玩家画像 ----
         profile = PlayerProfile(
@@ -205,13 +199,11 @@ class Narrator:
 
         session.total_turns = 1
 
-        # ---- 6. 检查开场叙事中是否有名字揭示 ----
-        await self._check_name_reveals(db, session, opening)
         await db.flush()
 
         logger.info(f"✅ 游戏已创建: session_id={session.id}")
 
-        # 获取最新的角色列表（含揭示后的名字）
+        # 获取最新的角色列表
         updated_chars = await self._get_character_summaries(db, session.id)
 
         return {
@@ -249,7 +241,7 @@ class Narrator:
           4. 调用 LLM
           5. 解析响应
           6. 更新好感度
-          7. 异步提取记忆
+          7. 更新场景状态
           8. 返回结果
 
         Args:
@@ -324,9 +316,6 @@ class Narrator:
         if affection_changes:
             await self._apply_affection_changes(db, session_id, affection_changes)
 
-        # ---- 6.5 检查名字揭示 ----
-        await self._check_name_reveals(db, session, result)
-
         # ---- 7. 更新场景状态 ----
         scene_state = result.get("scene_state", {}) or {}
         if scene_state:
@@ -367,11 +356,7 @@ class Narrator:
 
         await db.flush()
 
-        # ---- 8. 异步提取记忆（不阻塞响应）----
-        # TODO: 在后台任务中执行记忆提取
-        # await self._extract_memories(db, session_id, current_turn, content, result)
-
-        # ---- 9. 获取最新的角色列表（含好感度变化和名字揭示后的更新） ----
+        # ---- 8. 获取最新的角色列表（含好感度变化和名字揭示后的更新） ----
         updated_chars = await self._get_character_summaries(db, session_id)
 
         logger.info(f"📖 剧情推进完成: session={session_id[:8]} turn={current_turn}")
@@ -658,14 +643,9 @@ class Narrator:
         char = char_data.get("character", {})
         personality = char.get("personality", {})
         relationships = char.get("relationships", {})
-        real_name = self._extract_canonical_name(
-            char.get("full_name", char_data.get("name", "未知"))
-        )
 
         return {
-            "name": affection.character_name,  # 显示名（初始为 ???）
-            "real_name": real_name,            # 真名（LLM 用于剧情揭示）
-            "name_revealed": affection.character_name != "???",
+            "name": affection.character_name,
             "personality_summary": personality.get("archetype", ""),
             "mbti": personality.get("mbti", ""),
             "likes": personality.get("likes", []),
@@ -679,101 +659,30 @@ class Narrator:
                 f"好奇:{affection.curiosity:.0f}"
             ),
             "relationships": relationships,
-            "scene_presence": "active",  # 默认在场，由叙事引擎管理
+            "scene_presence": "active",
             "known_player_info": [],
         }
-
-    async def _check_name_reveals(
-        self, db: AsyncSession, session: GameSession, result: dict
-    ):
-        """
-        检查 LLM 输出中是否有角色名字揭示。
-        如果叙事文本或对话中出现了角色的真名，自动更新 AffectionState.character_name。
-        如果超过 2 轮仍未揭示任何角色名，强制揭示互动最多的角色。
-        """
-        name_reveals = session.world_state.get("name_reveals", {})
-        real_name_map = session.world_state.get("real_name_map", {})
-
-        if not real_name_map:
-            return
-
-        # 规范化 real_name_map 中的名字（兼容旧数据中的 "自定义 (参考: ...)" 格式）
-        canonical_map = {}
-        for char_id, raw_name in real_name_map.items():
-            canonical_map[char_id] = self._extract_canonical_name(raw_name)
-
-        # 拼接本轮所有文本内容用于检查
-        text_blob = result.get("narration", "")
-        for d in result.get("dialogues", []):
-            text_blob += " " + d.get("text", "")
-            # 同时检查 speaker 字段（LLM 可能在自我介绍时使用真名作为 speaker）
-            speaker = d.get("speaker", "")
-            if speaker and speaker != "???":
-                text_blob += " " + speaker
-
-        # 也扫描 affection_changes 中的角色名（LLM 经常在这里使用真名）
-        for change in result.get("affection_changes", []):
-            char_name = change.get("character", "").strip()
-            if char_name and char_name != "???":
-                text_blob += " " + char_name
-
-        # 获取该会话所有角色
-        stmt = select(AffectionState).where(AffectionState.session_id == session.id)
-        res = await db.execute(stmt)
-        affections = res.scalars().all()
-
-        updated = False
-        for aff in affections:
-            char_id = aff.character_id
-            if name_reveals.get(char_id):
-                continue  # 已揭示，跳过
-
-            real_name = canonical_map.get(char_id, "")
-            if not real_name or real_name == "???":
-                continue
-
-            # 检查真名是否出现在文本中（至少匹配 2 个字符的名字）
-            if len(real_name) >= 2 and real_name in text_blob:
-                aff.character_name = real_name
-                name_reveals[char_id] = True
-                updated = True
-                logger.info(f"🏷️ 名字揭示: {char_id} → {real_name}")
-
-        # ---- 自动揭示兜底：如果超过 2 轮仍无任何揭示，强制揭示一个角色 ----
-        total_revealed = sum(1 for v in name_reveals.values() if v)
-        current_turn = session.total_turns or 0
-
-        if total_revealed == 0 and current_turn >= 2 and affections:
-            # 选出好感度变化最大（绝对值）的角色优先揭示
-            best = max(
-                (a for a in affections if not name_reveals.get(a.character_id)),
-                key=lambda a: abs(a.intimacy) + abs(a.trust) + abs(a.respect) + abs(a.curiosity),
-                default=None,
-            )
-            if best:
-                real_name = canonical_map.get(best.character_id, "")
-                if real_name and real_name != "???":
-                    best.character_name = real_name
-                    name_reveals[best.character_id] = True
-                    updated = True
-                    logger.info(
-                        f"🏷️ 自动名字揭示（第{current_turn}轮兜底）: "
-                        f"{best.character_id} → {real_name}"
-                    )
-
-        if updated:
-            session.world_state["name_reveals"] = name_reveals
 
     async def _get_character_summaries(
         self, db: AsyncSession, session_id: str
     ) -> list[dict]:
         """
-        获取会话中所有角色的摘要信息（含最新好感度数据）。
+        获取会话中所有角色的摘要信息（含最新好感度数据和头像 URL）。
         用于返回给前端刷新角色面板和雷达图。
         """
         stmt = select(AffectionState).where(AffectionState.session_id == session_id)
         result = await db.execute(stmt)
         affections = result.scalars().all()
+
+        # 批量查询 Template 表获取 avatar_url
+        char_ids = [aff.character_id for aff in affections]
+        avatar_map: dict[str, str | None] = {}
+        if char_ids:
+            tpl_stmt = select(Template.template_id, Template.avatar_url).where(
+                Template.template_id.in_(char_ids)
+            )
+            tpl_result = await db.execute(tpl_stmt)
+            avatar_map = {row.template_id: row.avatar_url for row in tpl_result.all()}
 
         return [
             {
@@ -787,6 +696,7 @@ class Narrator:
                 "respect": aff.respect,
                 "curiosity": aff.curiosity,
                 "fear": aff.fear,
+                "avatar_url": avatar_map.get(aff.character_id),
             }
             for aff in affections
         ]
@@ -858,56 +768,17 @@ class Narrator:
         result = await db.execute(stmt)
         affections = result.scalars().all()
 
-        # 加载 session 以获取 real_name_map
-        session_stmt = select(GameSession).where(GameSession.id == session_id)
-        session_result = await db.execute(session_stmt)
-        session = session_result.scalar_one_or_none()
-        real_name_map = {}
-        if session:
-            raw_map = session.world_state.get("real_name_map", {})
-            for cid, raw_name in raw_map.items():
-                real_name_map[cid] = self._extract_canonical_name(raw_name)
-
-        # 为每个角色构建所有可能的匹配名列表
-        def _get_match_names(aff):
-            names = set()
-            names.add(aff.character_name)  # "???" 或已揭示的真名
-            # 添加 canonical name
-            canonical = real_name_map.get(aff.character_id, "")
-            if canonical:
-                names.add(canonical)
-            return names
-
         applied_any = False
         for aff in affections:
-            match_names = _get_match_names(aff)
             char_changes = []
             for change in changes:
                 change_char = change.get("character", "").strip()
-                # 按 display name、canonical name、character_id 任一匹配
-                if (
-                    change_char in match_names
-                    or change_char == aff.character_id
-                ):
+                # 按 display name 或 character_id 匹配
+                if change_char == aff.character_name or change_char == aff.character_id:
                     char_changes.append(change)
             if char_changes:
                 self._affection_calc.apply_changes(aff, char_changes)
                 applied_any = True
-
-                # ---- 关键修复: 如果 LLM 在 affection_changes 中使用了角色真名，
-                # 自动更新 character_name 并标记为已揭示 ----
-                if aff.character_name == "???":
-                    canonical = real_name_map.get(aff.character_id, "")
-                    for change in char_changes:
-                        change_char = change.get("character", "").strip()
-                        if change_char and change_char != "???" and canonical and change_char == canonical:
-                            aff.character_name = change_char
-                            if session:
-                                name_reveals = session.world_state.get("name_reveals", {})
-                                name_reveals[aff.character_id] = True
-                                session.world_state["name_reveals"] = name_reveals
-                            logger.info(f"🏷️ 好感度匹配触发名字揭示: {aff.character_id} → {change_char}")
-                            break
 
                 logger.info(
                     f"💗 好感度变化: {aff.character_name} ({aff.character_id}) "

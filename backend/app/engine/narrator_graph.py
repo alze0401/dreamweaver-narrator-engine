@@ -13,13 +13,13 @@
 """
 
 from typing import TypedDict, Optional
-from dataclasses import dataclass, field
 
 from langgraph.graph import StateGraph, END
 from loguru import logger
 
 from app.llm.base import LLMMessage
 from app.llm.response_parser import response_parser
+from app.llm.narrator_schemas import NarratorOutput
 
 # PromptBuilder 单例缓存
 _prompt_builder_instance = None
@@ -131,10 +131,11 @@ def build_prompt_node(state: NarrationState) -> dict:
 
 async def call_llm_node(state: NarrationState) -> dict:
     """
-    节点: 调用 LLM (通过 LangChain ChatOpenAI)
+    节点: 调用 LLM (通过 LangChain with_structured_output)
     
-    使用 DeepSeekProvider 发送消息并获取完整回复。
-    空响应时自动重试（最多 2 次）。
+    使用 Pydantic 模型强制 LLM 输出结构化数据，
+    确保每个字段符合预定义 schema 且不为空。
+    失败时降级为 JSON mode + response_parser 兜底。
     """
     from app.llm.deepseek import get_llm_provider
     from app.config import get_settings
@@ -143,48 +144,115 @@ async def call_llm_node(state: NarrationState) -> dict:
     settings = get_settings()
     messages = state.get("messages", [])
 
-    max_attempts = 3  # 首次 + 最多 2 次重试
+    # 注入格式提醒（放在消息列表末尾，确保 LLM 在每轮都记得格式规则）
+    format_reminder = LLMMessage(
+        role="system",
+        content=(
+            "【格式提醒】你的输出必须严格分离 narration 和 dialogues：\n"
+            "narration = 纯场景/环境/动作描写，绝对不含角色台词。禁止 [角色名] 标签。禁止 [场景:] 标签。\n"
+            "dialogues = 角色的所有对白。有角色说话时此数组不能为空。\n"
+            "【禁止填充】narration 每句话必须有实际信息。禁止写「四周陷入沉默」「只剩微风」「空气凝固」等空洞句子。"
+            "直接承接玩家的行动描写后续反应，不要用填充句拖延。"
+        ),
+    )
+    messages = list(messages) + [format_reminder]
+
+    max_attempts = 2  # 最多 2 次尝试（首次 + 1 次重试）
     raw_response = ""
+    structured_result = None
 
     for attempt in range(1, max_attempts + 1):
-        logger.debug(f"[LangGraph] call_llm: 第{attempt}次调用 LLM...")
+        logger.debug(f"[LangGraph] call_llm: 第{attempt}次调用 LLM (structured output)...")
 
-        raw_response = await llm.chat_completion(
-            messages=messages,
-            temperature=settings.llm_temperature,
-            max_tokens=settings.llm_max_tokens,
-            top_p=settings.llm_top_p,
-            response_format={"type": "json_object"},
-        )
+        try:
+            # 优先使用 structured output（Pydantic 强制 schema）
+            result = await llm.structured_completion(
+                messages=messages,
+                output_model=NarratorOutput,
+                temperature=settings.llm_temperature,
+                max_tokens=settings.llm_max_tokens,
+                top_p=settings.llm_top_p,
+            )
+            # 转为字典
+            structured_result = result.model_dump()
+            raw_response = f"[structured_output] {result.model_dump_json()}"
 
-        if raw_response and raw_response.strip():
-            logger.debug(f"[LangGraph] call_llm: 收到 {len(raw_response)} 字符")
+            # 自动补充缺失的 choice ID（LLM 经常省略 id 字段）
+            for i, choice in enumerate(structured_result.get("choices", [])):
+                if not choice.get("id"):
+                    choice["id"] = f"c{i + 1}"
+
+            logger.debug(
+                f"[LangGraph] call_llm: structured output 成功, "
+                f"narration={len(structured_result.get('narration', ''))}字, "
+                f"dialogues={len(structured_result.get('dialogues', []))}, "
+                f"choices={len(structured_result.get('choices', []))}"
+            )
             break
+        except Exception as e:
+            logger.warning(
+                f"[LangGraph] call_llm: structured output 第{attempt}次失败: {e}"
+            )
 
-        # 空响应 → 重试
-        logger.warning(f"[LangGraph] call_llm: 第{attempt}次收到空响应")
-        if attempt < max_attempts:
-            # 重试时微调温度以提高输出概率
-            import asyncio
-            await asyncio.sleep(0.5 * attempt)  # 简单退避
-        else:
-            logger.error("[LangGraph] call_llm: 多次重试后仍收到空响应")
+    # 如果 structured output 全部失败，降级为 JSON mode（禁用 thinking 避免空响应）
+    if structured_result is None:
+        logger.warning("[LangGraph] call_llm: structured output 全部失败，降级为 JSON mode")
+        for attempt in range(1, max_attempts + 1):
+            raw_response = await llm.chat_completion(
+                messages=messages,
+                temperature=settings.llm_temperature,
+                max_tokens=settings.llm_max_tokens,
+                top_p=settings.llm_top_p,
+                response_format={"type": "json_object"},
+            )
+            if raw_response and raw_response.strip():
+                logger.debug(f"[LangGraph] call_llm: JSON mode 收到 {len(raw_response)} 字符")
+                break
+            logger.warning(f"[LangGraph] call_llm: JSON mode 第{attempt}次收到空响应")
 
-    return {"raw_response": raw_response}
+    return {
+        "raw_response": raw_response,
+        "parsed_result": structured_result,  # 如果是 None，parse_response_node 会兜底解析
+    }
 
 
 def parse_response_node(state: NarrationState) -> dict:
     """
     节点: 解析 LLM 输出
     
-    使用 ResponseParser 将原始文本解析为结构化数据:
-    {narration, dialogues, choices, scene_state, affection_changes}
+    如果 call_llm_node 已通过 structured output 得到结构化结果，直接使用。
+    否则降级为 ResponseParser 将原始文本解析为结构化数据。
+    最后执行安全网检查：如果 narration 含角色台词但 dialogues 为空，自动提取。
     """
+    # structured output 已由 Pydantic 模型保证字段正确，直接使用
+    structured_result = state.get("parsed_result")
+    if structured_result is not None:
+        # 安全网：JSON泄漏修复 → 清洗场景标签 → 移除填充句 → 合并拆分对话 → 确保 choices
+        structured_result = response_parser.sanitize_json_leakage(structured_result)
+        structured_result = response_parser.clean_dialogue_fields(structured_result)
+        structured_result = response_parser.remove_narration_filler(structured_result)
+        structured_result = response_parser.ensure_dialogues(structured_result)
+        structured_result = response_parser.merge_split_dialogues(structured_result)
+        structured_result = response_parser.ensure_choices(structured_result)
+        logger.debug(
+            f"[LangGraph] parse (structured): narration={len(structured_result.get('narration', ''))}字, "
+            f"dialogues={len(structured_result.get('dialogues', []))}, "
+            f"choices={len(structured_result.get('choices', []))}"
+        )
+        return {"parsed_result": structured_result}
+
+    # 降级：使用 ResponseParser 解析原始文本
     raw_response = state.get("raw_response", "")
     parsed = response_parser.parse(raw_response)
+    parsed = response_parser.sanitize_json_leakage(parsed)
+    parsed = response_parser.clean_dialogue_fields(parsed)
+    parsed = response_parser.remove_narration_filler(parsed)
+    parsed = response_parser.ensure_dialogues(parsed)
+    parsed = response_parser.merge_split_dialogues(parsed)
+    parsed = response_parser.ensure_choices(parsed)
 
     logger.debug(
-        f"[LangGraph] parse: narration={len(parsed.get('narration', ''))}字, "
+        f"[LangGraph] parse (fallback): narration={len(parsed.get('narration', ''))}字, "
         f"dialogues={len(parsed.get('dialogues', []))}, "
         f"choices={len(parsed.get('choices', []))}"
     )

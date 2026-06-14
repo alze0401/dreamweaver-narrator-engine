@@ -98,9 +98,8 @@ export function getBgmUrl(mood: string | undefined): string | null {
     }
   }
 
-  // 尝试直接用氛围名
-  const sanitized = mood.replace(/\s+/g, '_').toLowerCase()
-  return `/assets/bgm/${sanitized}.mp3`
+  // 没有匹配的 mood 关键词 → 返回 null（不要猜测文件名，避免加载不存在的文件导致 BGM 中断）
+  return null
 }
 
 // ========== 角色立绘 ==========

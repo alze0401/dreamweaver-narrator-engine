@@ -5,7 +5,8 @@
 
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, FolderOpen, BookOpen, Settings } from 'lucide-react'
+import { Play, FolderOpen, BookOpen, Settings, LogOut, User, Shield, ChevronRight, Globe, Users, BookMarked, Sparkles, HelpCircle, X } from 'lucide-react'
+import { useAuthStore } from '@/stores/authStore'
 
 /** 生成浮动光粒子数据 */
 const useParticles = (count: number) =>
@@ -35,12 +36,19 @@ const useParticles = (count: number) =>
 export const Home: React.FC = () => {
   const navigate = useNavigate()
   const particles = useParticles(28)
+  const { user, isAuthenticated, logout } = useAuthStore()
+  const [avatarFailed, setAvatarFailed] = React.useState(false)
+  const [guideOpen, setGuideOpen] = React.useState(false)
+
+  const handleLogout = () => {
+    logout()
+  }
 
   const menuItems = [
     { icon: Play, label: '开始新游戏', desc: '踏入新的故事世界', action: () => navigate('/template-select') },
     { icon: FolderOpen, label: '继续游戏', desc: '回到上次冒险', action: () => navigate('/load-save') },
     { icon: BookOpen, label: '模板管理', desc: '浏览与自定义模板', action: () => navigate('/templates') },
-    { icon: Settings, label: '设置', desc: '调整游戏参数', action: () => {} },
+    { icon: Settings, label: '设置', desc: '调整游戏参数', action: () => navigate('/settings') },
   ]
 
   return (
@@ -75,6 +83,122 @@ export const Home: React.FC = () => {
           background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
           ['--duration' as string]: '11s',
         }} />
+
+      {/* ====== 右上角工具栏 ====== */}
+      <div className="absolute top-5 right-6 z-20 flex items-center gap-2.5">
+        {/* 玩法引导按钮 + 弹出面板 */}
+        <div className="relative">
+          <button
+            onClick={() => setGuideOpen(!guideOpen)}
+            className="glass-panel w-9 h-9 flex items-center justify-center
+                       hover:border-primary/20 transition-all duration-200 group"
+            title="玩法引导"
+          >
+            <HelpCircle size={15} className="text-text-dim/50 group-hover:text-primary-light transition-colors" />
+          </button>
+
+          {guideOpen && (
+            <div className="absolute top-11 right-0 w-72 glass-panel p-4 animate-fade-in z-30">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={13} className="text-accent-light" />
+                  <span className="text-text-bright text-sm font-medium">玩法引导</span>
+                </div>
+                <button onClick={() => setGuideOpen(false)} className="text-text-dim/40 hover:text-text-dim transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+
+              <p className="text-text-dim/60 text-[11px] leading-relaxed mb-3">
+                推荐先创建自定义模板，打造独一无二的故事世界，再开始冒险。
+              </p>
+
+              <div className="space-y-1.5">
+                {[
+                  { icon: Globe, step: 1, title: '创建世界观', desc: '设定时代、地理、规则', target: '/templates?tab=world' },
+                  { icon: Users, step: 2, title: '设计角色', desc: '性格、说话风格、关系', target: '/templates?tab=character' },
+                  { icon: BookMarked, step: 3, title: '编写剧本', desc: '剧情走向、章节钩子', target: '/templates?tab=scenario' },
+                  { icon: Play, step: 4, title: '选择模板开始', desc: '在「新游戏」中选用你的创作', target: '/template-select' },
+                ].map(({ icon: Icon, step, title, desc, target }) => (
+                  <button
+                    key={step}
+                    onClick={() => { navigate(target); setGuideOpen(false) }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg
+                               hover:bg-primary/5 transition-colors duration-200 group text-left"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary-light text-[9px]
+                                     font-bold flex items-center justify-center shrink-0">
+                      {step}
+                    </span>
+                    <Icon size={12} className="text-text-dim/40 group-hover:text-primary-light shrink-0 transition-colors" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-text-bright text-[11px] font-medium block leading-tight">{title}</span>
+                      <span className="text-text-dim/40 text-[10px] block">{desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-white/5">
+                <p className="text-text-dim/30 text-[10px]">
+                  想快速体验？直接在「开始新游戏」中选预置模板也可以。
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {isAuthenticated && user ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/profile')}
+              className="glass-panel flex items-center gap-2 px-4 py-2
+                         hover:border-primary/20 transition-all duration-200"
+              title="个人资料"
+            >
+              {user.avatar_url && !avatarFailed ? (
+                <img
+                  src={user.avatar_url}
+                  alt="头像"
+                  className="w-6 h-6 rounded-lg object-cover"
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : user.role === 'admin' ? (
+                <Shield size={14} className="text-amber-400" />
+              ) : (
+                <User size={14} className="text-primary-light" />
+              )}
+              <span className="text-text-bright text-sm font-medium">
+                {user.display_name || user.username}
+              </span>
+              {user.role === 'admin' && (
+                <span className="text-[10px] text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded-md">
+                  管理员
+                </span>
+              )}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="glass-panel flex items-center gap-1.5 px-3 py-2
+                         text-text-dim/60 hover:text-red-300 text-xs transition-colors duration-200"
+              title="退出登录"
+            >
+              <LogOut size={13} />
+              <span>退出</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => navigate('/login')}
+            className="glass-panel flex items-center gap-1.5 px-4 py-2
+                       text-primary-light hover:text-primary text-sm font-medium
+                       transition-colors duration-200"
+          >
+            <User size={14} />
+            <span>登录</span>
+          </button>
+        )}
+      </div>
 
       {/* ====== 标题区域 ====== */}
       <div className="text-center mb-14 relative z-10 animate-fade-in">

@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import String, Integer, Boolean, JSON, DateTime, Text, ForeignKey, func
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -34,6 +35,11 @@ class SaveSlot(Base):
         nullable=False, index=True,
         comment="所属游戏会话ID"
     )
+    user_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+        comment="所属用户ID"
+    )
     slot_number: Mapped[int] = mapped_column(
         Integer, nullable=False,
         comment="存档位编号 (1-20手动, 101-103自动)"
@@ -55,7 +61,7 @@ class SaveSlot(Base):
 
     # ---- 状态快照 (完整序列化) ----
     state_snapshot: Mapped[dict] = mapped_column(
-        JSON, nullable=False, default=dict,
+        MutableDict.as_mutable(JSON), nullable=False, default=dict,
         comment=(
             "完整的游戏状态快照，包含:\n"
             "- template_ids: 使用的模板\n"

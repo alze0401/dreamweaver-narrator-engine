@@ -6,20 +6,54 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useTypewriter } from '@/hooks/useTypewriter'
 import { getCharacterPortrait } from '@/utils/assets'
+import { AvatarLightbox } from '@/components/AvatarLightbox'
 import type { DisplayMessage } from '@/stores/gameStore'
+
+/** 根据角色名生成稳定的渐变背景色 */
+const nameToGradient = (name: string): string => {
+  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  const gradients = [
+    'from-purple-500/40 to-pink-500/30',
+    'from-blue-500/40 to-cyan-500/30',
+    'from-rose-500/40 to-orange-500/30',
+    'from-emerald-500/40 to-teal-500/30',
+    'from-indigo-500/40 to-violet-500/30',
+    'from-amber-500/40 to-yellow-500/30',
+  ]
+  return gradients[hash % gradients.length]
+}
 
 interface Props {
   message: DisplayMessage
   onTypeComplete?: () => void
   isLatest: boolean
+  /** 角色头像 URL（从外部传入，优先使用） */
+  avatarUrl?: string | null
 }
 
-export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest }) => {
+export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest, avatarUrl }) => {
   const { displayedText, isComplete, skip } = useTypewriter(
-    isLatest ? message.text : message.text,
+    message.text,
     onTypeComplete,
+    isLatest, // 只有最新一条消息才播放打字机动画
   )
   const boxRef = useRef<HTMLDivElement>(null)
+
+  // 立绘检测：hooks 必须在所有条件分支之前调用（React Rules of Hooks）
+  const [portrait, setPortrait] = useState<string | null>(null)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  useEffect(() => {
+    if (avatarUrl) {
+      setPortrait(avatarUrl)
+      return
+    }
+    if (!message.speaker) return
+    const url = getCharacterPortrait(message.speaker)
+    const img = new Image()
+    img.onload = () => setPortrait(url)
+    img.onerror = () => setPortrait(null)
+    img.src = url
+  }, [message.speaker, avatarUrl])
 
   useEffect(() => {
     boxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -44,32 +78,36 @@ export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest
 
   // ===== 角色台词 =====
   if (message.type === 'dialogue') {
-    // 立绘检测
-    const [portrait, setPortrait] = useState<string | null>(null)
-    useEffect(() => {
-      if (!message.speaker) return
-      const url = getCharacterPortrait(message.speaker)
-      const img = new Image()
-      img.onload = () => setPortrait(url)
-      img.onerror = () => setPortrait(null)
-      img.src = url
-    }, [message.speaker])
-
     return (
       <div ref={boxRef} className="mb-5 animate-fade-in cursor-pointer" onClick={skip}>
-        {/* 角色名 + 立绘小头像 + 情感 */}
+        {/* 角色名 + 头像小头像 + 情感 */}
         <div className="flex items-center gap-2.5 mb-2">
-          {/* 小头像 */}
-          {portrait && (
-            <img src={portrait} alt={message.speaker}
-                 className="w-7 h-7 rounded-lg object-cover shrink-0 ring-1 ring-accent/20" />
-          )}
+          {/* 小头像（始终显示：有头像用头像，无则渐变首字母）圆形 QQ 风格 */}
+          {portrait ? (
+            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 ring-1 ring-accent/20 cursor-zoom-in"
+                 onClick={(e) => { e.stopPropagation(); setLightboxOpen(true) }}>
+              <img
+                src={portrait}
+                alt={message.speaker}
+                className="w-full h-full object-contain"
+                onError={() => setPortrait(null)}
+              />
+            </div>
+          ) : message.speaker ? (
+            <div className={`w-8 h-8 rounded-full shrink-0 ring-1 ring-accent/20 overflow-hidden
+                            bg-gradient-to-br ${nameToGradient(message.speaker)}
+                            flex items-center justify-center`}>
+              <span className="text-text-bright text-[11px] font-bold drop-shadow-sm">
+                {message.speaker.charAt(0)}
+              </span>
+            </div>
+          ) : null}
           {/* 角色名 */}
           <span className="text-accent-light font-bold text-sm tracking-wide">{message.speaker}</span>
           {/* 情感标签 */}
           {message.emotion && (
             <span className="text-[10px] px-2 py-0.5 rounded-full
-                             bg-accent/8 text-accent-light/60 border border-accent/10">
+                             bg-accent/12 text-accent-light/80 border border-accent/15">
               {message.emotion}
             </span>
           )}
@@ -89,6 +127,15 @@ export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest
             {!isComplete && <span className="typewriter-cursor" />}
           </p>
         </div>
+
+        {/* 头像放大浮层 */}
+        {lightboxOpen && portrait && (
+          <AvatarLightbox
+            src={portrait}
+            alt={message.speaker || '角色'}
+            onClose={() => setLightboxOpen(false)}
+          />
+        )}
       </div>
     )
   }

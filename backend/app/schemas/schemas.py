@@ -9,7 +9,7 @@ Narrator Engine - Pydantic 请求/响应模型
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # =====================================================================
@@ -72,7 +72,7 @@ class DialogueAdvanceRequest(BaseModel):
     )
     content: str = Field(
         ..., min_length=1,
-        description="选项ID 或 自由输入的文本"
+        description="选项文本 或 自由输入的文本"
     )
     metadata: dict = Field(
         default_factory=dict,
@@ -86,6 +86,11 @@ class DialogueChoice(BaseModel):
     text: str = Field(..., description="选项文本")
     tone: str = Field(default="", description="选项的语气/风格标签")
     hint: str = Field(default="", description="选项的简短提示")
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id_to_str(cls, v) -> str:
+        return str(v).strip() if v is not None else "c0"
 
 
 class DialogueLine(BaseModel):
@@ -132,6 +137,7 @@ class CharacterSummary(BaseModel):
     respect: float = 0.0
     curiosity: float = 0.0
     fear: float = 0.0
+    avatar_url: Optional[str] = None
 
 
 class CharacterDetail(BaseModel):
@@ -148,6 +154,7 @@ class CharacterDetail(BaseModel):
     overall_score: float
     triggered_events: list
     known_secrets: list
+    avatar_url: Optional[str] = None
 
 
 # =====================================================================
@@ -162,6 +169,7 @@ class TemplateSummary(BaseModel):
     is_preset: bool
     description: str = ""
     tags: list[str] = Field(default_factory=list)
+    avatar_url: Optional[str] = Field(default=None, description="角色头像/立绘 URL")
 
 
 class TemplateDetail(BaseModel):
@@ -173,6 +181,11 @@ class TemplateDetail(BaseModel):
     is_preset: bool
     description: str = ""
     data: dict = Field(description="模板的完整数据 (世界观/角色/剧本配置)")
+    categories: list[dict] = Field(
+        default_factory=list,
+        description="关联的分类列表 [{code, name}]"
+    )
+    avatar_url: Optional[str] = Field(default=None, description="角色头像/立绘 URL")
 
 
 class TemplateCreateRequest(BaseModel):
@@ -182,6 +195,27 @@ class TemplateCreateRequest(BaseModel):
     description: str = Field(default="")
     data: dict = Field(..., description="模板配置数据")
     clone_from: Optional[str] = Field(None, description="从哪个模板克隆 (可选)")
+    category_codes: list[str] = Field(
+        default_factory=list,
+        description="要关联的分类 code 列表 (可选，空列表表示不关联)"
+    )
+
+
+class TemplateUpdateRequest(BaseModel):
+    """更新自定义模板的请求（部分更新）"""
+    name: Optional[str] = Field(None, max_length=128)
+    description: Optional[str] = None
+    data: Optional[dict] = Field(None, description="模板配置数据")
+    category_codes: Optional[list[str]] = Field(
+        None,
+        description="要关联的分类 code 列表 (None 表示不更新分类)"
+    )
+
+
+class AIGenerateRequest(BaseModel):
+    """AI 生成模板数据的请求"""
+    template_type: str = Field(..., pattern="^(world|character|scenario)$")
+    user_prompt: str = Field(..., min_length=1, description="用户对模板的描述")
 
 
 # =====================================================================
@@ -191,7 +225,13 @@ class TemplateCreateRequest(BaseModel):
 class SaveCreateRequest(BaseModel):
     """创建存档的请求"""
     slot_number: int = Field(..., ge=1, le=20, description="存档位 (1-20)")
+    session_id: str = Field(..., description="游戏会话ID")
     title: str = Field(default="", max_length=128)
+
+
+class AutoSaveRequest(BaseModel):
+    """自动存档的请求"""
+    session_id: str = Field(..., description="游戏会话ID")
 
 
 class SaveSlotResponse(BaseModel):
