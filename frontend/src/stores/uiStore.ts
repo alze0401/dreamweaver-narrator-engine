@@ -15,6 +15,9 @@ interface UIState {
   /** 打字机速度 (毫秒/字符) */
   typewriterSpeed: number
 
+  /** 对话文字字号 (px) */
+  fontSize: number
+
   /** 全局加载状态 */
   loading: boolean
   loadingText: string
@@ -24,6 +27,7 @@ interface UIState {
   setSidePanelOpen: (v: boolean) => void
   toggleAffectionNumbers: () => void
   setTypewriterSpeed: (ms: number) => void
+  setFontSize: (px: number) => void
   setLoading: (v: boolean, text?: string) => void
 }
 
@@ -31,6 +35,7 @@ export const useUIStore = create<UIState>((set) => ({
   sidePanelOpen: false,
   showAffectionNumbers: false,
   typewriterSpeed: 35,
+  fontSize: 15,
   loading: false,
   loadingText: '',
 
@@ -39,5 +44,6 @@ export const useUIStore = create<UIState>((set) => ({
   toggleAffectionNumbers: () =>
     set((s) => ({ showAffectionNumbers: !s.showAffectionNumbers })),
   setTypewriterSpeed: (ms) => set({ typewriterSpeed: ms }),
+  setFontSize: (px) => set({ fontSize: px }),
   setLoading: (v, text = '') => set({ loading: v, loadingText: text }),
 }))

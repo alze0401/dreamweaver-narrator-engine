@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useTypewriter } from '@/hooks/useTypewriter'
 import { getCharacterPortrait } from '@/utils/assets'
 import { AvatarLightbox } from '@/components/AvatarLightbox'
+import { useUIStore } from '@/stores/uiStore'
 import type { DisplayMessage } from '@/stores/gameStore'
 
 /** 根据角色名生成稳定的渐变背景色 */
@@ -38,6 +39,7 @@ export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest
     isLatest, // 只有最新一条消息才播放打字机动画
   )
   const boxRef = useRef<HTMLDivElement>(null)
+  const fontSize = useUIStore((s) => s.fontSize)
 
   // 立绘检测：hooks 必须在所有条件分支之前调用（React Rules of Hooks）
   const [portrait, setPortrait] = useState<string | null>(null)
@@ -67,7 +69,8 @@ export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest
           {/* 左侧装饰线 */}
           <div className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full
                           bg-gradient-to-b from-primary/40 via-accent/20 to-transparent" />
-          <p className="text-text/90 leading-[1.85] font-serif text-[15px] whitespace-pre-wrap">
+          <p className="text-text/90 leading-[1.85] font-serif whitespace-pre-wrap"
+             style={{ fontSize: `${fontSize}px` }}>
             {displayedText}
             {!isComplete && <span className="typewriter-cursor" />}
           </p>
@@ -122,7 +125,8 @@ export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest
 
         {/* 台词气泡 */}
         <div className="dialogue-glass px-5 py-3.5">
-          <p className="text-text-bright leading-[1.85] text-[15px] whitespace-pre-wrap">
+          <p className="text-text-bright leading-[1.85] whitespace-pre-wrap"
+             style={{ fontSize: `${fontSize}px` }}>
             {displayedText}
             {!isComplete && <span className="typewriter-cursor" />}
           </p>
@@ -147,7 +151,8 @@ export const DialogueBox: React.FC<Props> = ({ message, onTypeComplete, isLatest
         <div className="max-w-[80%] px-5 py-3 rounded-2xl rounded-tr-md
                         bg-gradient-to-br from-primary/15 to-primary-dark/10
                         border border-primary/15">
-          <p className="text-primary-light text-[15px] leading-relaxed">
+          <p className="text-primary-light leading-relaxed"
+             style={{ fontSize: `${fontSize}px` }}>
             {message.text}
           </p>
         </div>

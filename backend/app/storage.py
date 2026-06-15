@@ -57,22 +57,24 @@ class StorageService:
         return self._client
 
     def ensure_bucket(self):
-        """确保存储桶存在，不存在则创建并设为公开读，同时配置 CORS"""
+        """确保存储桶存在，不存在则创建；始终确保公开读策略正确，同时配置 CORS"""
         try:
             if not self.client.bucket_exists(self._bucket):
                 self.client.make_bucket(self._bucket)
-                # 设置公开读策略（允许匿名 GET）
-                policy = (
-                    '{"Version":"2012-10-17",'
-                    '"Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},'
-                    '"Action":["s3:GetObject"],'
-                    f'"Resource":["arn:aws:s3:::{self._bucket}/preset/*",'
-                    f'"arn:aws:s3:::{self._bucket}/user/*"]}}]}}'
-                )
-                self.client.set_bucket_policy(self._bucket, policy)
-                logger.info(f"存储桶 '{self._bucket}' 已创建并设为公开读")
+                logger.info(f"存储桶 '{self._bucket}' 已创建")
             else:
                 logger.debug(f"存储桶 '{self._bucket}' 已存在")
+
+            # 始终设置/更新公开读策略（确保已有桶也能获得正确策略）
+            policy = (
+                '{"Version":"2012-10-17",'
+                '"Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},'
+                '"Action":["s3:GetObject"],'
+                f'"Resource":["arn:aws:s3:::{self._bucket}/preset/*",'
+                f'"arn:aws:s3:::{self._bucket}/user/*"]}}]}}'
+            )
+            self.client.set_bucket_policy(self._bucket, policy)
+            logger.info(f"存储桶 '{self._bucket}' 公开读策略已更新")
 
             # 始终确保 CORS 配置正确（允许前端跨域加载图片等资源）
             self._ensure_cors()

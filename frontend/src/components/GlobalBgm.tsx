@@ -5,10 +5,19 @@
 
 import React, { useEffect, useRef } from 'react'
 import { useBgmStore } from '@/stores/bgmStore'
+import { useUIStore } from '@/stores/uiStore'
 import { settingsApi } from '@/services/api'
 import { getBgmUrl } from '@/utils/assets'
 
 const DEFAULT_BGM = '/assets/bgm/default.mp3'
+
+/** text_speed 枚举 → typewriterSpeed 毫秒/字符 */
+const TEXT_SPEED_MAP: Record<string, number> = {
+  slow: 60,
+  normal: 35,
+  fast: 15,
+  instant: 0,
+}
 
 export const GlobalBgm: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -17,7 +26,7 @@ export const GlobalBgm: React.FC = () => {
   const enabled = useBgmStore((s) => s.enabled)
   const volume = useBgmStore((s) => s.volume)
 
-  // 启动时从用户设置加载 BGM 配置
+  // 启动时从用户设置加载 BGM 配置 + 字号/速度
   useEffect(() => {
     settingsApi.get()
       .then((s) => {
@@ -31,6 +40,14 @@ export const GlobalBgm: React.FC = () => {
           store.setBgmUrl(s.bgm_url)
         } else if (!store.bgmUrl) {
           store.setBgmUrl(DEFAULT_BGM)
+        }
+
+        // 同步字号和文字速度到 uiStore
+        const ui = useUIStore.getState()
+        if (s.font_size) ui.setFontSize(s.font_size)
+        if (s.text_speed) {
+          const ms = TEXT_SPEED_MAP[s.text_speed] ?? 35
+          ui.setTypewriterSpeed(ms)
         }
       })
       .catch(() => {

@@ -10,6 +10,8 @@ import {
   Type, Palette, RotateCcw, Check, Loader2, X,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { useBgmStore } from '@/stores/bgmStore'
+import { useUIStore } from '@/stores/uiStore'
 import { uploadApi, settingsApi } from '@/services/api'
 import type { GameSettings } from '@/types'
 import { ImageCropper } from '@/components/ImageCropper'
@@ -35,6 +37,14 @@ const TEXT_SPEEDS: Array<{ value: GameSettings['text_speed']; label: string }> =
   { value: 'fast', label: '快速' },
   { value: 'instant', label: '瞬间' },
 ]
+
+/** text_speed 枚举 → typewriterSpeed 毫秒/字符 */
+const TEXT_SPEED_MAP: Record<string, number> = {
+  slow: 60,
+  normal: 35,
+  fast: 15,
+  instant: 0,
+}
 
 const THEMES: Array<{ value: string; label: string; desc: string; colors: string }> = [
   { value: 'dark', label: '暗夜', desc: '深紫黑底色', colors: 'from-[#1a1625] to-[#0c0a15] border-white/10' },
@@ -197,6 +207,18 @@ export const Settings: React.FC = () => {
           document.documentElement.setAttribute('data-theme', s.theme)
           try { localStorage.setItem('dw_theme', s.theme) } catch {}
         }
+        // 同步音频设置到 bgmStore
+        const bgm = useBgmStore.getState()
+        bgm.setEnabled(s.bgm_enabled !== false)
+        bgm.setVolume(s.bgm_volume ?? 0.3)
+        bgm.setMuted(s.bgm_enabled === false)
+        if (s.bgm_url) bgm.setBgmUrl(s.bgm_url)
+        // 同步字号和文字速度到 uiStore
+        if (s.font_size) useUIStore.getState().setFontSize(s.font_size)
+        if (s.text_speed) {
+          const ms = TEXT_SPEED_MAP[s.text_speed] ?? 35
+          useUIStore.getState().setTypewriterSpeed(ms)
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -230,6 +252,28 @@ export const Settings: React.FC = () => {
       document.documentElement.setAttribute('data-theme', value as string)
       try { localStorage.setItem('dw_theme', value as string) } catch {}
       window.dispatchEvent(new CustomEvent('dw:themeChanged', { detail: { theme: value } }))
+    }
+    // 音频设置同步到 bgmStore（实时生效）
+    if (key === 'bgm_enabled') {
+      const enabled = value as boolean
+      useBgmStore.getState().setEnabled(enabled)
+      if (!enabled) useBgmStore.getState().setMuted(true)
+      else useBgmStore.getState().setMuted(false)
+    }
+    if (key === 'bgm_volume') {
+      useBgmStore.getState().setVolume(value as number)
+    }
+    if (key === 'bgm_url') {
+      useBgmStore.getState().setBgmUrl((value as string) || '/assets/bgm/default.mp3')
+    }
+    // 字号同步到 uiStore（实时生效）
+    if (key === 'font_size') {
+      useUIStore.getState().setFontSize(value as number)
+    }
+    // 文字速度同步到 uiStore
+    if (key === 'text_speed') {
+      const ms = TEXT_SPEED_MAP[value as string] ?? 35
+      useUIStore.getState().setTypewriterSpeed(ms)
     }
     debouncedSave({ [key]: value })
   }
